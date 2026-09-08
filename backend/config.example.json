@@ -1,0 +1,47 @@
+{
+  "allowedEmailDomain": "zsi.kielce.pl",
+  "adminEmails": ["admin@zsi.kielce.pl"],
+  "adminEmail": "admin@zsi.kielce.pl",
+  "adminPassword": "admin123",
+  "schedule": {
+    "slots": [
+      { "start": "07:30", "end": "08:00" },
+      { "start": "08:45", "end": "08:50" },
+      { "start": "09:35", "end": "09:40" },
+      { "start": "10:25", "end": "10:30" },
+      { "start": "11:15", "end": "11:30" },
+      { "start": "12:15", "end": "12:20" },
+      { "start": "13:05", "end": "13:10" },
+      { "start": "13:55", "end": "14:00" },
+      { "start": "14:45", "end": "14:55" },
+      { "start": "15:40", "end": "15:45" },
+      { "start": "16:30", "end": "20:35" },
+      { "start": "17:20", "end": "17:25" },
+      { "start": "18:10", "end": "18:15" },
+      { "start": "19:00", "end": "19:05" }
+    ],
+    "bellOffsetSeconds": 30,
+    "fadeOutSecondsBeforeEnd": 5
+  },
+  "voteTieBreakMode": "oldest_vote",
+  "dataDir": "./data",
+  "songsDir": "./data/songs",
+  "queueFilePath": "./data/queue.json",
+  "queue": {
+    "randomMinRemaining": 10,
+    "randomFillSize": 10
+  },
+  "downloads": {
+    "maxConcurrency": 2,
+    "maxAttempts": 3,
+    "retryDelayMs": 2000
+  },
+  "smtp": {
+    "host": "smtp.example.com",
+    "port": 587,
+    "secure": false,
+    "user": "",
+    "pass": "",
+    "from": "noreply@zsi.kielce.pl"
+  }
+}

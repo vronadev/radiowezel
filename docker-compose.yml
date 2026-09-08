@@ -1,0 +1,31 @@
+# One-host stack: Vite UI + API + player (host port 80 by default).
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "0.0.0.0:${PORT:-80}:80"
+    env_file:
+      - backend/.env
+    environment:
+      NODE_ENV: production
+      TZ: ${TZ:-Europe/Warsaw}
+      PORT: ${PORT:-80}
+      DATA_DIR: /app/data
+      SONGS_DIR: /app/data/songs
+      QUEUE_FILE_PATH: /app/data/queue.json
+      DB_PATH: /app/data/app.db
+      FRONTEND_DIR: /app/public
+      PULSE_SERVER: ${PULSE_SERVER:-tcp:host.docker.internal:4713}
+      SDL_AUDIODRIVER: ${SDL_AUDIODRIVER:-pulse}
+      FFPLAY_PATH: ${FFPLAY_PATH:-/usr/bin/ffplay}
+      FFMPEG_PATH: ${FFMPEG_PATH:-/usr/bin/ffmpeg}
+      FFPROBE_PATH: ${FFPROBE_PATH:-/usr/bin/ffprobe}
+      FFMPEG_LOCATION: ${FFMPEG_LOCATION:-/usr/bin}
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/config.json:/app/config.json:ro
+    restart: unless-stopped

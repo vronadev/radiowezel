@@ -1,0 +1,14 @@
+.git
+**/.git
+**/node_modules
+**/dist
+**/coverage
+**/data
+**/.env
+**/config.json
+**/*.md
+backend/tests
+backend/bin
+backend/docker
+radiowezel-app/node_modules
+radiowezel-app/dist
