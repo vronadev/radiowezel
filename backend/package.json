@@ -18,7 +18,7 @@
     "dotenv": "^17.4.1",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^9.1.1",
     "ws": "^8.21.3",
     "yt-dlp-wrap": "^2.3.12"
   },
