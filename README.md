@@ -1,3 +1,6 @@
+![GitHub Release](https://img.shields.io/github/v/release/vronadev/radiowezel?style=flat-square)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/vronadev/radiowezel?style=flat-square)
+
 # Radiowęzeł
 
 School radio: students vote on tracks, the queue plays only during configured breaks, and admins moderate requests. The UI is React (Vite); the backend is Express + SQLite and plays audio with `ffplay`.
