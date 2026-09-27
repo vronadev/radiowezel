@@ -6,7 +6,8 @@ export class SlotSchedule {
   constructor(
     private readonly slots: ScheduleSlot[],
     private readonly clock: IClock = new SystemClock(),
-    private readonly bellOffsetSeconds = 0,
+    private readonly bellEndOffsetSeconds = 0,
+    private readonly bellStartOffsetSeconds = 0,
   ) {}
 
   getSlots(): ScheduleSlot[] {
@@ -61,7 +62,7 @@ export class SlotSchedule {
     if (!slot) {
       return false;
     }
-    return atSeconds < this.musicEndSeconds(slot);
+    return atSeconds >= this.musicStartSeconds(slot) && atSeconds < this.musicEndSeconds(slot);
   }
 
   getSlotEndSeconds(atSeconds = this.nowSeconds()): number | null {
@@ -99,15 +100,26 @@ export class SlotSchedule {
       if (this.isMusicWindow(atSeconds)) {
         return cursor;
       }
+      const current = this.findSlot(atSeconds);
+      if (current) {
+        const musicStart = this.musicStartSeconds(current);
+        if (atSeconds < musicStart && musicStart < this.musicEndSeconds(current)) {
+          return this.dateFromSeconds(musicStart, cursor);
+        }
+      }
       const nextBreak = this.getNextBreakStart(atSeconds);
       if (!nextBreak) {
         return cursor;
       }
-      const jumped = this.dateFromSeconds(nextBreak.start, cursor);
+      const jumped = this.dateFromSeconds(this.musicStartForBreak(nextBreak), cursor);
       if (jumped.getTime() <= cursor.getTime()) {
         const tomorrow = new Date(cursor.getTime());
         tomorrow.setDate(tomorrow.getDate() + 1);
-        cursor = this.dateFromSeconds(this.parseTimeToSeconds(nextBreak.slot.start), tomorrow);
+        const slotTimes = {
+          start: this.parseTimeToSeconds(nextBreak.slot.start),
+          end: this.parseTimeToSeconds(nextBreak.slot.end),
+        };
+        cursor = this.dateFromSeconds(this.musicStartSeconds(slotTimes), tomorrow);
         continue;
       }
       cursor = jumped;
@@ -140,7 +152,21 @@ export class SlotSchedule {
     return null;
   }
 
+  private musicStartForBreak(breakWindow: BreakWindow): number {
+    const slotTimes = {
+      start: this.parseTimeToSeconds(breakWindow.slot.start),
+      end: this.parseTimeToSeconds(breakWindow.slot.end),
+    };
+    const dayShift = breakWindow.start - slotTimes.start;
+    return this.musicStartSeconds(slotTimes) + dayShift;
+  }
+
+  private musicStartSeconds(slot: { start: number; end: number }): number {
+    const musicEnd = this.musicEndSeconds(slot);
+    return Math.min(musicEnd, slot.start + Math.max(0, this.bellStartOffsetSeconds));
+  }
+
   private musicEndSeconds(slot: { start: number; end: number }): number {
-    return Math.max(slot.start, slot.end - Math.max(0, this.bellOffsetSeconds));
+    return Math.max(slot.start, slot.end - Math.max(0, this.bellEndOffsetSeconds));
   }
 }

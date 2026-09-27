@@ -27,7 +27,8 @@ interface RawConfigFile {
   jwtSecret?: string;
   schedule?: {
     slots?: Array<{ start: string; end: string }>;
-    bellOffsetSeconds?: number;
+    bellStartOffsetSeconds?: number;
+    bellEndOffsetSeconds?: number;
     fadeOutSecondsBeforeEnd?: number;
   };
   voteTieBreakMode?: string;
@@ -107,8 +108,18 @@ export function loadConfig(): AppConfig {
     jwtSecret,
     schedule: {
       slots: file.schedule?.slots ?? [],
-      bellOffsetSeconds: file.schedule?.bellOffsetSeconds ?? 30,
-      fadeOutSecondsBeforeEnd: file.schedule?.fadeOutSecondsBeforeEnd ?? 5,
+      bellStartOffsetSeconds: parseNonNegativeInt(
+        process.env.BELL_START_OFFSET_SECONDS ?? file.schedule?.bellStartOffsetSeconds,
+        30,
+      ),
+      bellEndOffsetSeconds: parseNonNegativeInt(
+        process.env.BELL_END_OFFSET_SECONDS ?? file.schedule?.bellEndOffsetSeconds,
+        30,
+      ),
+      fadeOutSecondsBeforeEnd: parseNonNegativeInt(
+        process.env.FADE_OUT_SECONDS_BEFORE_END ?? file.schedule?.fadeOutSecondsBeforeEnd,
+        5,
+      ),
     },
     voteTieBreakMode: resolveVoteTieBreakMode(process.env.VOTE_TIE_BREAK_MODE, file.voteTieBreakMode),
     dataDir,

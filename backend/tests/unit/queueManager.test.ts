@@ -54,6 +54,8 @@ describe("QueueManager", () => {
     options: {
       clock?: FixedClock;
       slots?: Array<{ start: string; end: string }>;
+      bellEndOffsetSeconds?: number;
+      bellStartOffsetSeconds?: number;
       random?: () => number;
       randomMinRemaining?: number;
       randomFillSize?: number;
@@ -64,7 +66,12 @@ describe("QueueManager", () => {
       songService: layer.songService,
       voteService: layer.voteService,
       playlistService: layer.playlistService,
-      slotSchedule: new SlotSchedule(options.slots ?? [], clock),
+      slotSchedule: new SlotSchedule(
+        options.slots ?? [],
+        clock,
+        options.bellEndOffsetSeconds ?? 0,
+        options.bellStartOffsetSeconds ?? 0,
+      ),
       queueFilePath: "/tmp/queue.json",
       fileStore,
       clock,
@@ -299,6 +306,40 @@ describe("QueueManager", () => {
     expect(localTime(payload.queue[2]?.estimatedPlayAt)).toEqual({ hours: 8, minutes: 49, seconds: 20 });
     expect(localTime(payload.queue[3]?.estimatedPlayAt)).toEqual({ hours: 11, minutes: 15, seconds: 0 });
     expect(localTime(payload.queue[4]?.estimatedPlayAt)).toEqual({ hours: 11, minutes: 16, seconds: 30 });
+  });
+
+  it("offsets overflow ETAs by bellStartOffsetSeconds after the next slot start", () => {
+    const { layer, fileStore } = setup();
+    addVerifiedSongs(layer, fileStore, 6, "bellstart");
+    const clock = new FixedClock(atLocalTime(8, 46));
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock,
+      slots: [
+        { start: "08:45", end: "08:50" },
+        { start: "11:15", end: "11:30" },
+      ],
+      bellEndOffsetSeconds: 30,
+      bellStartOffsetSeconds: 30,
+      randomMinRemaining: 6,
+      randomFillSize: 6,
+    });
+    queueManager.refreshQueueFile();
+
+    const nowPlaying: NowPlaying = {
+      id: "now",
+      songId: "now-song",
+      title: "Now",
+      author: "A",
+      coverUrl: null,
+      votes: 0,
+      position: 1,
+      estimatedPlayAt: null,
+      durationSeconds: 60,
+      startedAt: atLocalTime(8, 45, 20).toISOString(),
+    };
+    const payload = queueManager.getQueuePayload(nowPlaying);
+    expect(localTime(payload.queue[3]?.estimatedPlayAt)).toEqual({ hours: 11, minutes: 15, seconds: 30 });
+    expect(localTime(payload.queue[4]?.estimatedPlayAt)).toEqual({ hours: 11, minutes: 17, seconds: 0 });
   });
 
   it("chains evening-slot overflow into the next morning break instead of batch-resetting to 07:30", () => {

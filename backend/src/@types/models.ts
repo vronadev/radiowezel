@@ -181,7 +181,8 @@ export interface AppConfig {
   jwtSecret: string;
   schedule: {
     slots: ScheduleSlot[];
-    bellOffsetSeconds: number;
+    bellStartOffsetSeconds: number;
+    bellEndOffsetSeconds: number;
     fadeOutSecondsBeforeEnd: number;
   };
   voteTieBreakMode: VoteTieBreakMode;
