@@ -16,9 +16,9 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_connect_timeout 3s;
-				proxy_read_timeout 15s;
+        proxy_read_timeout 15s;
         proxy_send_timeout 15s;
-				add_header Cache-Control "no-store, no-cache, must-revalidate";
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
 				client_max_body_size 64m;
     }
 
