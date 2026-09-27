@@ -51,12 +51,36 @@ describe("SlotSchedule", () => {
     expect(schedule.isInBreak()).toBe(true);
   });
 
-  it("ends music bellOffsetSeconds before the calendar slot end", () => {
+  it("ends music bellEndOffsetSeconds before the calendar slot end", () => {
     const afterMusic = new SlotSchedule(slots, new FixedClock(atLocalTime(8, 49, 40)), 30);
     expect(afterMusic.isInBreak()).toBe(true);
     expect(afterMusic.isMusicWindow()).toBe(false);
     expect(afterMusic.getSlotEndSeconds()).toBe(8 * 3600 + 49 * 60 + 30);
     const stillPlaying = new SlotSchedule(slots, new FixedClock(atLocalTime(8, 49, 0)), 30);
     expect(stillPlaying.isMusicWindow()).toBe(true);
+  });
+
+  it("starts music bellStartOffsetSeconds after the calendar slot start", () => {
+    const duringBell = new SlotSchedule(slots, new FixedClock(atLocalTime(8, 45, 10)), 30, 30);
+    expect(duringBell.isInBreak()).toBe(true);
+    expect(duringBell.isMusicWindow()).toBe(false);
+    const musicStarted = new SlotSchedule(slots, new FixedClock(atLocalTime(8, 45, 30)), 30, 30);
+    expect(musicStarted.isMusicWindow()).toBe(true);
+  });
+
+  it("queues the next playable instant at slot start plus the opening bell offset", () => {
+    const at = atLocalTime(8, 50, 0);
+    const schedule = new SlotSchedule(slots, new FixedClock(at), 30, 30);
+    const next = schedule.nextPlayableInstant(at);
+    expect(next.getHours()).toBe(11);
+    expect(next.getMinutes()).toBe(15);
+    expect(next.getSeconds()).toBe(30);
+    const duringOpeningBell = atLocalTime(8, 45, 5);
+    const waited = new SlotSchedule(slots, new FixedClock(duringOpeningBell), 30, 30).nextPlayableInstant(
+      duringOpeningBell,
+    );
+    expect(waited.getHours()).toBe(8);
+    expect(waited.getMinutes()).toBe(45);
+    expect(waited.getSeconds()).toBe(30);
   });
 });

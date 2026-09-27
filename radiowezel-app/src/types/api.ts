@@ -62,7 +62,8 @@ export interface LoginRequest {
 
 export interface ScheduleConfig {
   slots: ScheduleSlot[];
-  bellOffsetSeconds: number;
+  bellStartOffsetSeconds: number;
+  bellEndOffsetSeconds: number;
   fadeOutSecondsBeforeEnd: number;
 }
 

@@ -122,9 +122,10 @@ Copy from `backend/config.example.json`. Used for school-specific settings that 
 | `allowedEmailDomain` | Email domain allowed to register / magic-link (e.g. `zsi.kielce.pl`). Overridable with `ALLOWED_EMAIL_DOMAIN`. |
 | `adminEmails` | Addresses that get the admin UI. |
 | `adminEmail` / `adminPassword` | Bootstrap admin created on first start if that user does not exist. Changing the password later is a database update, not a restart. |
-| `schedule.slots` | Breaks as `{ "start": "HH:MM", "end": "HH:MM" }` in **container local time** (`TZ`). Playback only runs inside these windows. |
-| `schedule.bellOffsetSeconds` | Stop music this many seconds **before** the slot `end` (bell window). Playback and queue ETAs use `end - bellOffsetSeconds`. Fade-out finishes at that instant. |
-| `schedule.fadeOutSecondsBeforeEnd` | Start the live fade this many seconds before music stop (`end - bellOffsetSeconds`). Fade ends at the music stop, not the calendar slot end. |
+| `schedule.slots` | Breaks as `{ "start": "HH:MM", "end": "HH:MM" }` in **container local time** (`TZ`). Playback only runs inside these windows after the start bell offset and until the end bell offset. |
+| `schedule.bellStartOffsetSeconds` | Start music this many seconds **after** the slot `start` (opening bell window). Playback and queue ETAs use `start + bellStartOffsetSeconds`. Default `30`. Overridable with `BELL_START_OFFSET_SECONDS`. |
+| `schedule.bellEndOffsetSeconds` | Stop music this many seconds **before** the slot `end` (closing bell window). Playback and queue ETAs use `end - bellEndOffsetSeconds`. Fade-out finishes at that instant. Default `30`. Overridable with `BELL_END_OFFSET_SECONDS`. |
+| `schedule.fadeOutSecondsBeforeEnd` | Start the live fade this many seconds before music stop (`end - bellEndOffsetSeconds`). Fade ends at the music stop, not the calendar slot end. Overridable with `FADE_OUT_SECONDS_BEFORE_END`. |
 | `voteTieBreakMode` | Equal-vote queue/library order. **Default `oldest_vote`**. Also `older_latest_vote` (earlier latest vote wins) or `newest_vote` (later latest vote wins, previous behaviour). Top-level field, next to `schedule` — not inside the slots list. Overridable with `VOTE_TIE_BREAK_MODE`. |
 | `dataDir` / `songsDir` / `queueFilePath` | Local paths if you are **not** using Docker. Docker compose forces `/app/data` (and friends) via env. |
 | `queue.randomMinRemaining` / `queue.randomFillSize` | Random backfill of the play queue (votes always win). Overridable with `QUEUE_RANDOM_*`. |
@@ -149,6 +150,7 @@ Used by `backend/docker-compose.yml` and by the root one-host compose (`env_file
 | `DATA_DIR` / `SONGS_DIR` / `QUEUE_FILE_PATH` / `DB_PATH` | Inside the container these should stay `/app/data` (volume `backend/data`). |
 | `QUEUE_RANDOM_MIN_REMAINING` / `QUEUE_RANDOM_FILL_SIZE` | Random queue backfill. |
 | `VOTE_TIE_BREAK_MODE` | Optional override of `config.json` `voteTieBreakMode`. |
+| `BELL_START_OFFSET_SECONDS` / `BELL_END_OFFSET_SECONDS` / `FADE_OUT_SECONDS_BEFORE_END` | Optional overrides of `config.json` schedule music offsets. |
 | `DOWNLOAD_MAX_CONCURRENCY` / `DOWNLOAD_MAX_ATTEMPTS` / `DOWNLOAD_RETRY_DELAY_MS` | Download worker limits. |
 | `ALLOWED_EMAIL_DOMAIN` | Optional override of `allowedEmailDomain`. |
 | `SMTP_*` | Optional overrides of `config.json` `smtp`. |

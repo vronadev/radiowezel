@@ -1,3 +1,5 @@
+import type { ScheduleConfig } from "@/types/api";
+
 const API = "/api";
 
 function getHeaders(): HeadersInit {
@@ -280,7 +282,7 @@ export const api = {
     return handleRes(res);
   },
 
-  async getSchedule(): Promise<{ slots: { start: string; end: string }[]; bellOffsetSeconds: number; fadeOutSecondsBeforeEnd: number }> {
+  async getSchedule(): Promise<ScheduleConfig> {
     const res = await apiFetch(`${API}/schedule`, { credentials: "include" });
     return handleRes(res);
   },

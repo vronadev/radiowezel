@@ -11,7 +11,8 @@ export class ScheduleController {
     const schedule = this.config.schedule;
     response.json({
       slots: schedule.slots || [],
-      bellOffsetSeconds: schedule.bellOffsetSeconds ?? 30,
+      bellStartOffsetSeconds: schedule.bellStartOffsetSeconds ?? 30,
+      bellEndOffsetSeconds: schedule.bellEndOffsetSeconds ?? 30,
       fadeOutSecondsBeforeEnd: schedule.fadeOutSecondsBeforeEnd ?? 5,
     });
   };
