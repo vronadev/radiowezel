@@ -7,12 +7,14 @@ describe("EmailSMTP", () => {
     const createTransport = vi.fn().mockReturnValue({ sendMail });
     const email = new EmailSMTP(
       {
+        transport: "smtp",
         host: "smtp.example.com",
         port: 587,
         secure: false,
         user: "radio",
         pass: "secret",
         from: "radio@example.com",
+        sendmailPath: "/usr/sbin/sendmail",
       },
       createTransport,
     );
@@ -36,7 +38,14 @@ describe("EmailSMTP", () => {
   it("sends a registration magic link with the register subject", async () => {
     const sendMail = vi.fn().mockResolvedValue({});
     const email = new EmailSMTP(
-      { host: "smtp.example.com", port: 465, secure: true, from: "from@example.com" },
+      {
+        transport: "smtp",
+        host: "smtp.example.com",
+        port: 465,
+        secure: true,
+        from: "from@example.com",
+        sendmailPath: "/usr/sbin/sendmail",
+      },
       () => ({ sendMail }),
     );
     await email.sendMagicLink("user@zsi.kielce.pl", "abc", "register", "https://radio.example/");
@@ -48,7 +57,14 @@ describe("EmailSMTP", () => {
   it("sends a song-approved notification with the required subject", async () => {
     const sendMail = vi.fn().mockResolvedValue({});
     const email = new EmailSMTP(
-      { host: "smtp.example.com", port: 587, secure: false, from: "from@example.com" },
+      {
+        transport: "smtp",
+        host: "smtp.example.com",
+        port: 587,
+        secure: false,
+        from: "from@example.com",
+        sendmailPath: "/usr/sbin/sendmail",
+      },
       () => ({ sendMail }),
     );
     await email.sendSongApproved("user@zsi.kielce.pl", "Hit", "http://localhost/vote");
@@ -60,8 +76,43 @@ describe("EmailSMTP", () => {
 
   it("does not send when SMTP host is missing", async () => {
     const sendMail = vi.fn();
-    const email = new EmailSMTP({ port: 587, secure: false }, () => ({ sendMail }));
+    const email = new EmailSMTP({ transport: "smtp", port: 587, secure: false, sendmailPath: "/usr/sbin/sendmail" }, () => ({
+      sendMail,
+    }));
     await email.sendMail({ to: "a@b.c", subject: "x", text: "y" });
     expect(sendMail).not.toHaveBeenCalled();
+  });
+
+  it("submits through local sendmail without SMTP auth", async () => {
+    const sendMail = vi.fn().mockResolvedValue({});
+    const createTransport = vi.fn().mockReturnValue({ sendMail });
+    const email = new EmailSMTP(
+      {
+        transport: "sendmail",
+        host: "mail.example.com",
+        port: 25,
+        secure: false,
+        user: "radio",
+        pass: "secret",
+        from: "radio@example.com",
+        sendmailPath: "/usr/sbin/sendmail",
+      },
+      createTransport,
+    );
+
+    // Node only pipes to sendmail; host/port/user/pass belong to msmtp (Docker entrypoint).
+    expect(createTransport).toHaveBeenCalledTimes(1);
+    expect(createTransport).toHaveBeenCalledWith({
+      sendmail: true,
+      newline: "unix",
+      path: "/usr/sbin/sendmail",
+    });
+    expect(createTransport.mock.calls[0]?.[0]).not.toHaveProperty("auth");
+    expect(createTransport.mock.calls[0]?.[0]).not.toHaveProperty("host");
+
+    await email.sendMagicLink("user@zsi.kielce.pl", "token-1", "login", "http://localhost/");
+    const payload = sendMail.mock.calls[0]?.[0] as { from: string; to: string };
+    expect(payload.from).toBe("radio@example.com");
+    expect(payload.to).toBe("user@zsi.kielce.pl");
   });
 });

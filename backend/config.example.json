@@ -38,11 +38,13 @@
     "retryDelayMs": 2000
   },
   "smtp": {
+    "transport": "smtp",
     "host": "smtp.example.com",
     "port": 587,
     "secure": false,
     "user": "",
     "pass": "",
-    "from": "noreply@zsi.kielce.pl"
+    "from": "noreply@zsi.kielce.pl",
+    "sendmailPath": "/usr/sbin/sendmail"
   }
 }

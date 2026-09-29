@@ -164,13 +164,17 @@ export interface YoutubeVideoMetadata {
   coverUrl: string | null;
 }
 
+export type MailTransport = "smtp" | "sendmail";
+
 export interface SmtpConfig {
+  transport: MailTransport;
   host?: string;
   port: number;
   secure: boolean;
   user?: string;
   pass?: string;
   from?: string;
+  sendmailPath: string;
 }
 
 export interface AppConfig {
