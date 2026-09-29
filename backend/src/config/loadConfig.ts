@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-import type { AppConfig } from "../@types/models.js";
+import type { AppConfig, MailTransport } from "../@types/models.js";
 import {
   DEFAULT_DOWNLOAD_MAX_ATTEMPTS,
   DEFAULT_DOWNLOAD_MAX_CONCURRENCY,
@@ -47,12 +47,14 @@ interface RawConfigFile {
   playerKey?: string;
   ffmpegLocation?: string;
   smtp?: {
+    transport?: string;
     host?: string;
     port?: number;
     secure?: boolean;
     user?: string;
     pass?: string;
     from?: string;
+    sendmailPath?: string;
   };
 }
 
@@ -68,6 +70,25 @@ function readConfigFile(): RawConfigFile {
     }
     return {};
   }
+}
+
+function resolveMailTransport(value: string | undefined): MailTransport {
+  return value === "sendmail" ? "sendmail" : "smtp";
+}
+
+function resolveSmtpConfig(file: RawConfigFile): AppConfig["smtp"] {
+  const transport = resolveMailTransport(process.env.SMTP_TRANSPORT || file.smtp?.transport);
+  const defaultPort = transport === "sendmail" ? 25 : 587;
+  return {
+    transport,
+    host: process.env.SMTP_HOST || file.smtp?.host,
+    port: Number(process.env.SMTP_PORT || file.smtp?.port || defaultPort),
+    secure: process.env.SMTP_SECURE === "true" || file.smtp?.secure === true,
+    user: process.env.SMTP_USER || file.smtp?.user,
+    pass: process.env.SMTP_PASS || file.smtp?.pass,
+    from: process.env.SMTP_FROM || file.smtp?.from,
+    sendmailPath: process.env.SMTP_SENDMAIL_PATH || file.smtp?.sendmailPath || "/usr/sbin/sendmail",
+  };
 }
 
 function resolvePath(maybeRelative: string, fallback: string): string {
@@ -132,14 +153,7 @@ export function loadConfig(): AppConfig {
     frontendDir: process.env.FRONTEND_DIR || path.join(backendRoot, "public"),
     playerKey: process.env.PLAYER_KEY || file.playerKey,
     ffmpegLocation: process.env.FFMPEG_LOCATION || file.ffmpegLocation,
-    smtp: {
-      host: process.env.SMTP_HOST || file.smtp?.host,
-      port: Number(process.env.SMTP_PORT || file.smtp?.port || 587),
-      secure: process.env.SMTP_SECURE === "true" || file.smtp?.secure === true,
-      user: process.env.SMTP_USER || file.smtp?.user,
-      pass: process.env.SMTP_PASS || file.smtp?.pass,
-      from: process.env.SMTP_FROM || file.smtp?.from,
-    },
+    smtp: resolveSmtpConfig(file),
     pulseAudioServer: process.env.PULSE_SERVER?.trim() || undefined,
     ffplayPath: process.env.FFPLAY_PATH?.trim() || "ffplay",
     ffmpegPath: process.env.FFMPEG_PATH?.trim() || "ffmpeg",

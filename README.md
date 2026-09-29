@@ -130,7 +130,7 @@ Copy from `backend/config.example.json`. Used for school-specific settings that 
 | `dataDir` / `songsDir` / `queueFilePath` | Local paths if you are **not** using Docker. Docker compose forces `/app/data` (and friends) via env. |
 | `queue.randomMinRemaining` / `queue.randomFillSize` | Random backfill of the play queue (votes always win). Overridable with `QUEUE_RANDOM_*`. |
 | `downloads.maxConcurrency` / `maxAttempts` / `retryDelayMs` | Background YouTube downloads. Overridable with `DOWNLOAD_*`. |
-| `smtp` | `host`, `port`, `secure`, `user`, `pass`, `from`. Without SMTP, magic-link and approval emails are not sent. Overridable with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. |
+| `smtp` | `transport` (`smtp` or `sendmail`), `host`, `port`, `secure`, `user`, `pass`, `from`, `sendmailPath`. **`smtp`:** nodemailer connects to `host` with `user`/`pass` (default port **587**). **`sendmail`:** nodemailer pipes to `sendmailPath`; in Docker, msmtp uses the same `host`/`port`/`secure`/`from` with no login (default port **25**, default host `host.docker.internal` if unset). Set `port` / `SMTP_PORT` yourself if the mail server listens elsewhere. Without `host` (smtp mode) emails are skipped. Env: `SMTP_TRANSPORT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SENDMAIL_PATH`. |
 | `ffmpegLocation` | Directory containing ffmpeg on a **non-Docker** Windows install. Docker images set `FFMPEG_LOCATION=/usr/bin`. |
 | `playerKey` | Optional extra player auth key (`PLAYER_KEY` env). |
 
@@ -153,7 +153,7 @@ Used by `backend/docker-compose.yml` and by the root one-host compose (`env_file
 | `BELL_START_OFFSET_SECONDS` / `BELL_END_OFFSET_SECONDS` / `FADE_OUT_SECONDS_BEFORE_END` | Optional overrides of `config.json` schedule music offsets. |
 | `DOWNLOAD_MAX_CONCURRENCY` / `DOWNLOAD_MAX_ATTEMPTS` / `DOWNLOAD_RETRY_DELAY_MS` | Download worker limits. |
 | `ALLOWED_EMAIL_DOMAIN` | Optional override of `allowedEmailDomain`. |
-| `SMTP_*` | Optional overrides of `config.json` `smtp`. |
+| `SMTP_*` | Optional overrides of `config.json` `smtp`. With `SMTP_TRANSPORT=sendmail`, `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_FROM` configure msmtp’s connection to the mail server (`SMTP_PORT` defaults to **25**; override for a non-standard submission port). `SMTP_USER` / `SMTP_PASS` are ignored. |
 | `FRONTEND_DIR` | Unified image only: directory of the Vite `dist` (default `/app/public`). |
 
 ### `radiowezel-app/.env`

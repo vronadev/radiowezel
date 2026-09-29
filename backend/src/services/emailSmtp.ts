@@ -13,12 +13,20 @@ export interface MailTransporter {
   }): Promise<unknown>;
 }
 
-export type TransportFactory = (options: {
+export type SmtpTransportOptions = {
   host: string;
   port: number;
   secure: boolean;
   auth?: { user: string; pass: string };
-}) => MailTransporter;
+};
+
+export type SendmailTransportOptions = {
+  sendmail: true;
+  newline: "unix";
+  path: string;
+};
+
+export type TransportFactory = (options: SmtpTransportOptions | SendmailTransportOptions) => MailTransporter;
 
 export class EmailSMTP implements IEmailService {
   private readonly transporter: MailTransporter | null;
@@ -26,9 +34,18 @@ export class EmailSMTP implements IEmailService {
 
   constructor(
     smtp: SmtpConfig,
-    createTransport: TransportFactory = (options) => nodemailer.createTransport(options),
+    createTransport: TransportFactory = (options) =>
+      nodemailer.createTransport(options as nodemailer.TransportOptions),
   ) {
     this.fromEmail = smtp.from || "zsiradio.system@gmail.com";
+    if (smtp.transport === "sendmail") {
+      this.transporter = createTransport({
+        sendmail: true,
+        newline: "unix",
+        path: smtp.sendmailPath || "/usr/sbin/sendmail",
+      });
+      return;
+    }
     if (!smtp.host) {
       this.transporter = null;
       return;

@@ -20,8 +20,14 @@ application.realtime.attach(server);
 
 server.listen(config.port, () => {
   const hasUi = fs.existsSync(path.join(config.frontendDir, "index.html"));
+  const mailMode =
+    config.smtp.transport === "sendmail"
+      ? `sendmail ${config.smtp.sendmailPath} → ${config.smtp.host || "(unset)"}:${config.smtp.port}`
+      : config.smtp.host
+        ? `smtp ${config.smtp.host}:${config.smtp.port}`
+        : "disabled";
   console.log(
-    `Radiowęzeł on http://localhost:${config.port} (${hasUi ? "UI+API" : "API"}) (db: ${config.dbPath})`,
+    `Radiowęzeł on http://localhost:${config.port} (${hasUi ? "UI+API" : "API"}) (db: ${config.dbPath}) (mail: ${mailMode})`,
   );
   application.queueManager.refreshQueueFile();
   application.verification.recover();

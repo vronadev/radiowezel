@@ -37,6 +37,8 @@ RUN apt-get update \
     libpulse0 \
     libsdl2-2.0-0 \
     pulseaudio-utils \
+    msmtp \
+    msmtp-mta \
   && curl -fsSL -o /usr/local/bin/yt-dlp \
     "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" \
   && chmod a+rx /usr/local/bin/yt-dlp \
@@ -52,6 +54,9 @@ COPY --from=backend-builder /app/node_modules ./node_modules
 COPY --from=backend-builder /app/dist ./dist
 COPY --from=backend-builder /app/package.json ./
 COPY backend/config.example.json ./
+COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+  && chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY --from=frontend /frontend/dist ./public
 
 ENV NODE_ENV=production \
@@ -71,4 +76,5 @@ ENV NODE_ENV=production \
     SDL_AUDIODRIVER=pulse
 
 EXPOSE 3001
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]
