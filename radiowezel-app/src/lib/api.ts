@@ -1,67 +1,54 @@
 import type { ScheduleConfig } from "@/types/api";
+import { toast } from "@/hooks/use-toast";
+import {
+  createHttpClient,
+  request,
+  isApiTimeoutError,
+  REQUEST_TIMEOUT_MESSAGE,
+  type ApiRequestConfig,
+} from "./httpClient";
 
-const API = "/api";
+export { isApiTimeoutError, REQUEST_TIMEOUT_MESSAGE };
+export type { ApiRequestConfig };
 
-function getHeaders(): HeadersInit {
-  return {
-    "Content-Type": "application/json"
-  };
-}
-
-function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(input, { cache: "no-store", ...init });
-}
-
-async function handleRes<T>(res: Response): Promise<T> {
-  if (res.status === 401) {
-    throw new Error("Unauthorized");
-  }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || "Request failed");
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json();
-}
+const http = createHttpClient(() => {
+  toast({
+    title: "Przekroczono czas oczekiwania",
+    description: "Serwer nie odpowiedział. Spróbuj ponownie.",
+    variant: "destructive",
+  });
+});
 
 export const api = {
-  async getQueue(): Promise<{ nowPlaying: unknown | null; queue: unknown[]; schedule?: { currentSlot: { start: string; end: string } | null; nextSlot: { start: string; end: string } | null; inBreak: boolean } }> {
-    const res = await apiFetch(`${API}/queue`, { credentials: "include" });
-    return handleRes(res);
+  async getQueue(config?: ApiRequestConfig): Promise<{ nowPlaying: unknown | null; queue: unknown[]; schedule?: { currentSlot: { start: string; end: string } | null; nextSlot: { start: string; end: string } | null; inBreak: boolean } }> {
+    return request(http, { url: "/queue" }, config);
   },
 
-  async getPublicQueue(): Promise<{ nowPlaying: unknown | null; queue: unknown[]; schedule?: { currentSlot: { start: string; end: string } | null; nextSlot: { start: string; end: string } | null; inBreak: boolean } }> {
-    const res = await apiFetch(`${API}/public/queue`);
-    return handleRes(res);
+  async getPublicQueue(config?: ApiRequestConfig): Promise<{ nowPlaying: unknown | null; queue: unknown[]; schedule?: { currentSlot: { start: string; end: string } | null; nextSlot: { start: string; end: string } | null; inBreak: boolean } }> {
+    return request(http, { url: "/public/queue" }, config);
   },
 
-  async getLibrary(query?: string, sort?: string, limit?: number, offset?: number): Promise<{ songs: unknown[] }> {
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (sort) params.set("sort", sort);
-    if (limit != null) params.set("limit", String(limit));
-    if (offset != null) params.set("offset", String(offset));
-    const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await apiFetch(`${API}/songs/library${qs}`, { credentials: "include" });
-    return handleRes(res);
+  async getLibrary(query?: string, sort?: string, limit?: number, offset?: number, config?: ApiRequestConfig): Promise<{ songs: unknown[] }> {
+    return request(http, {
+      url: "/songs/library",
+      params: {
+        q: query || undefined,
+        sort: sort || undefined,
+        limit,
+        offset,
+      },
+    }, config);
   },
 
-  async vote(body: { songId?: string; youtubeUrl?: string }): Promise<{ success: boolean; message?: string }> {
-    const res = await apiFetch(`${API}/vote`, {
-      method: "POST",
-      headers: getHeaders(),
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
-    return handleRes(res);
+  async vote(body: { songId?: string; youtubeUrl?: string }, config?: ApiRequestConfig): Promise<{ success: boolean; message?: string }> {
+    return request(http, { url: "/vote", method: "POST", data: body }, config);
   },
 
-  async getPendingSongs(): Promise<{ songs: unknown[] }> {
-    const res = await apiFetch(`${API}/admin/songs/pending`, { credentials: "include" });
-    return handleRes(res);
+  async getPendingSongs(config?: ApiRequestConfig): Promise<{ songs: unknown[] }> {
+    return request(http, { url: "/admin/songs/pending" }, config);
   },
 
-  async getDownloadQueue(): Promise<{
+  async getDownloadQueue(config?: ApiRequestConfig): Promise<{
     maxConcurrency: number;
     activeCount: number;
     queuedCount: number;
@@ -78,171 +65,129 @@ export const api = {
       lastError: string | null;
     }[];
   }> {
-    const res = await apiFetch(`${API}/admin/songs/download-queue`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: "/admin/songs/download-queue" }, config);
   },
 
-  async getPlayerState(): Promise<{ paused: boolean }> {
-    const res = await apiFetch(`${API}/admin/player`, { credentials: "include" });
-    return handleRes(res);
+  async getPlayerState(config?: ApiRequestConfig): Promise<{ paused: boolean }> {
+    return request(http, { url: "/admin/player" }, config);
   },
 
-  async setPlayerPaused(paused: boolean): Promise<{ paused: boolean }> {
-    const res = await apiFetch(`${API}/admin/player`, {
-      method: "PATCH",
-      headers: getHeaders(), credentials: "include",
-      body: JSON.stringify({ paused }),
-    });
-    return handleRes(res);
+  async setPlayerPaused(paused: boolean, config?: ApiRequestConfig): Promise<{ paused: boolean }> {
+    return request(http, { url: "/admin/player", method: "PATCH", data: { paused } }, config);
   },
 
-  async skipCurrentSong(): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/player/skip`, { method: "POST", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async skipCurrentSong(config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: "/admin/player/skip", method: "POST" }, config);
   },
 
-  async getSongFileBlobUrl(songId: string): Promise<string> {
-    const res = await apiFetch(`${API}/songs/${songId}/file`, { credentials: "include" });
-    if (!res.ok) throw new Error("Plik nie znaleziony");
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+  async getSongFileBlobUrl(songId: string, config?: ApiRequestConfig): Promise<string> {
+    try {
+      const blob = await request<Blob>(http, { url: `/songs/${songId}/file`, responseType: "blob" }, config);
+      return URL.createObjectURL(blob);
+    } catch (error) {
+      if (isApiTimeoutError(error)) {
+        throw error;
+      }
+      throw new Error("Plik nie znaleziony");
+    }
   },
 
-  async getSettings(): Promise<{ voteQuotaPerUser: number; voteQuotaPeriodHours: number }> {
-    const res = await apiFetch(`${API}/admin/settings`, { credentials: "include" });
-    return handleRes(res);
+  async getSettings(config?: ApiRequestConfig): Promise<{ voteQuotaPerUser: number; voteQuotaPeriodHours: number }> {
+    return request(http, { url: "/admin/settings" }, config);
   },
 
-  async patchSettings(body: { voteQuotaPerUser?: number; voteQuotaPeriodHours?: number }): Promise<{ voteQuotaPerUser: number; voteQuotaPeriodHours: number }> {
-    const res = await apiFetch(`${API}/admin/settings`, {
-      method: "PATCH",
-      headers: getHeaders(),
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
-    return handleRes(res);
+  async patchSettings(body: { voteQuotaPerUser?: number; voteQuotaPeriodHours?: number }, config?: ApiRequestConfig): Promise<{ voteQuotaPerUser: number; voteQuotaPeriodHours: number }> {
+    return request(http, { url: "/admin/settings", method: "PATCH", data: body }, config);
   },
 
-  async verifySong(songId: string, addToPlaylistId?: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/songs/${songId}/verify`, {
+  async verifySong(songId: string, addToPlaylistId?: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, {
+      url: `/admin/songs/${songId}/verify`,
       method: "POST",
-      headers: getHeaders(), credentials: "include",
-      body: JSON.stringify(addToPlaylistId ? { addToPlaylistId } : {}),
-    });
-    return handleRes(res);
+      data: addToPlaylistId ? { addToPlaylistId } : {},
+    }, config);
   },
 
-  async getPlaylists(): Promise<{ playlists: { id: string; name: string; youtubePlaylistUrl?: string; createdAt: string; songCount: number }[] }> {
-    const res = await apiFetch(`${API}/admin/playlists`, { credentials: "include" });
-    return handleRes(res);
+  async getPlaylists(config?: ApiRequestConfig): Promise<{ playlists: { id: string; name: string; youtubePlaylistUrl?: string; createdAt: string; songCount: number }[] }> {
+    return request(http, { url: "/admin/playlists" }, config);
   },
 
   /** Create playlist. If youtubePlaylistUrl is provided, imports from YT; otherwise creates empty playlist. */
-  async createPlaylist(name: string, youtubePlaylistUrl?: string): Promise<{ success: boolean; playlistId: string; name: string; added: number }> {
-    const res = await apiFetch(`${API}/admin/playlists`, {
+  async createPlaylist(name: string, youtubePlaylistUrl?: string, config?: ApiRequestConfig): Promise<{ success: boolean; playlistId: string; name: string; added: number }> {
+    return request(http, {
+      url: "/admin/playlists",
       method: "POST",
-      headers: getHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ name, youtubePlaylistUrl: youtubePlaylistUrl || undefined }),
-    });
-    return handleRes(res);
+      data: { name, youtubePlaylistUrl: youtubePlaylistUrl || undefined },
+    }, config);
   },
 
-  async syncPlaylist(playlistId: string): Promise<{ success: boolean; added: number; removed: number; verifying?: number }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}/sync`, { method: "POST", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async syncPlaylist(playlistId: string, config?: ApiRequestConfig): Promise<{ success: boolean; added: number; removed: number; verifying?: number }> {
+    return request(http, { url: `/admin/playlists/${playlistId}/sync`, method: "POST" }, config);
   },
 
-  async addSongToPlaylist(playlistId: string, songId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}/songs`, {
-      method: "POST",
-      headers: getHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ songId }),
-    });
-    return handleRes(res);
+  async addSongToPlaylist(playlistId: string, songId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/playlists/${playlistId}/songs`, method: "POST", data: { songId } }, config);
   },
 
-  async removeSongFromPlaylist(playlistId: string, songId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}/songs/${songId}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async removeSongFromPlaylist(playlistId: string, songId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/playlists/${playlistId}/songs/${songId}`, method: "DELETE" }, config);
   },
 
-  async deletePlaylist(playlistId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async deletePlaylist(playlistId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/playlists/${playlistId}`, method: "DELETE" }, config);
   },
 
-  async patchPlaylist(playlistId: string, body: { name?: string; excludeFromRandom?: boolean; excludeFromVoting?: boolean }): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}`, {
-      method: "PATCH",
-      headers: getHeaders(), credentials: "include",
-      body: JSON.stringify(body),
-    });
-    return handleRes(res);
+  async patchPlaylist(playlistId: string, body: { name?: string; excludeFromRandom?: boolean; excludeFromVoting?: boolean }, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/playlists/${playlistId}`, method: "PATCH", data: body }, config);
   },
 
-  async getAdminPlaylist(playlistId: string): Promise<{
+  async getAdminPlaylist(playlistId: string, config?: ApiRequestConfig): Promise<{
     id: string;
     name: string;
     excludeFromRandom: boolean;
     excludeFromVoting: boolean;
     songs: { id: string; title: string; author: string; coverUrl: string | null; status: string; source: string }[];
   }> {
-    const res = await apiFetch(`${API}/admin/playlists/${playlistId}`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: `/admin/playlists/${playlistId}` }, config);
   },
 
-  async deletePendingSong(songId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/songs/${songId}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async deletePendingSong(songId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/songs/${songId}`, method: "DELETE" }, config);
   },
 
-  async deleteSongPermanently(songId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/songs/${songId}/permanent`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async deleteSongPermanently(songId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/songs/${songId}/permanent`, method: "DELETE" }, config);
   },
 
-  async rebuildQueue(): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/queue/rebuild`, { method: "POST", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async rebuildQueue(config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: "/queue/rebuild", method: "POST" }, config);
   },
 
-  async removeSongFromQueue(songId: string): Promise<{ success: boolean }> {
-    const res = await apiFetch(`${API}/admin/queue/songs/${songId}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
-    return handleRes(res);
+  async removeSongFromQueue(songId: string, config?: ApiRequestConfig): Promise<{ success: boolean }> {
+    return request(http, { url: `/admin/queue/songs/${songId}`, method: "DELETE" }, config);
   },
 
-  async setSongQueueVotes(songId: string, count: number): Promise<{ success: boolean; count: number }> {
-    const res = await apiFetch(`${API}/admin/songs/${songId}/queue-votes`, {
-      method: "PATCH",
-      headers: getHeaders(), credentials: "include",
-      body: JSON.stringify({ count }),
-    });
-    return handleRes(res);
+  async setSongQueueVotes(songId: string, count: number, config?: ApiRequestConfig): Promise<{ success: boolean; count: number }> {
+    return request(http, { url: `/admin/songs/${songId}/queue-votes`, method: "PATCH", data: { count } }, config);
   },
 
-  async getEffectivePlaylist(): Promise<{
+  async getEffectivePlaylist(config?: ApiRequestConfig): Promise<{
     playlistId: string | null;
     playlistName: string | null;
     playlists?: { id: string; name: string }[];
   }> {
-    const res = await apiFetch(`${API}/effective-playlist`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: "/effective-playlist" }, config);
   },
 
-  async getPlaylist(playlistId: string): Promise<{ id: string; name: string; songs: { id: string; title: string; author: string; coverUrl: string | null }[] }> {
-    const res = await apiFetch(`${API}/playlists/${playlistId}`, { credentials: "include" });
-    return handleRes(res);
+  async getPlaylist(playlistId: string, config?: ApiRequestConfig): Promise<{ id: string; name: string; songs: { id: string; title: string; author: string; coverUrl: string | null }[] }> {
+    return request(http, { url: `/playlists/${playlistId}` }, config);
   },
 
-  async getRanking(limit?: number): Promise<{ songs: { id: string; title: string; author: string; coverUrl: string | null; totalVotes: number }[] }> {
-    const qs = limit != null ? `?limit=${limit}` : "";
-    const res = await apiFetch(`${API}/songs/ranking${qs}`, { credentials: "include" });
-    return handleRes(res);
+  async getRanking(limit?: number, config?: ApiRequestConfig): Promise<{ songs: { id: string; title: string; author: string; coverUrl: string | null; totalVotes: number }[] }> {
+    return request(http, { url: "/songs/ranking", params: { limit } }, config);
   },
 
-  async getSongRequests(): Promise<{
+  async getSongRequests(config?: ApiRequestConfig): Promise<{
     requests: {
       songId: string;
       title: string;
@@ -255,27 +200,20 @@ export const api = {
       createdAt: string;
     }[];
   }> {
-    const res = await apiFetch(`${API}/song-requests`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: "/song-requests" }, config);
   },
 
-  async bumpSongRequest(songId: string): Promise<{ success: boolean; added: boolean }> {
-    const res = await apiFetch(`${API}/song-requests/${songId}/bump`, {
-      method: "POST",
-      headers: getHeaders(),
-      credentials: "include",
-    });
-    return handleRes(res);
+  async bumpSongRequest(songId: string, config?: ApiRequestConfig): Promise<{ success: boolean; added: boolean }> {
+    return request(http, { url: `/song-requests/${songId}/bump`, method: "POST" }, config);
   },
 
-  async getPlaylistSchedule(): Promise<{
+  async getPlaylistSchedule(config?: ApiRequestConfig): Promise<{
     activePlaylistId: string | null;
     cyclic: { id: string; playlistId: string; dayOfWeek: number }[];
     oneOff: { id: string; playlistId: string; date: string }[];
     activeDays?: number[];
   }> {
-    const res = await apiFetch(`${API}/admin/playlist-schedule`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: "/admin/playlist-schedule" }, config);
   },
 
   async patchPlaylistSchedule(body: {
@@ -283,66 +221,45 @@ export const api = {
     cyclic?: { playlistId: string; dayOfWeek: number }[];
     oneOff?: { playlistId: string; date: string }[];
     activeDays?: number[];
-  }): Promise<{ activePlaylistId: string | null; cyclic: unknown[]; oneOff: unknown[]; activeDays?: number[] }> {
-    const res = await apiFetch(`${API}/admin/playlist-schedule`, {
-      method: "PATCH",
-      headers: getHeaders(),
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
-    return handleRes(res);
+  }, config?: ApiRequestConfig): Promise<{ activePlaylistId: string | null; cyclic: unknown[]; oneOff: unknown[]; activeDays?: number[] }> {
+    return request(http, { url: "/admin/playlist-schedule", method: "PATCH", data: body }, config);
   },
 
-  async getSchedule(): Promise<ScheduleConfig> {
-    const res = await apiFetch(`${API}/schedule`, { credentials: "include" });
-    return handleRes(res);
+  async getSchedule(config?: ApiRequestConfig): Promise<ScheduleConfig> {
+    return request(http, { url: "/schedule" }, config);
   },
 
-  async login(email: string, password: string): Promise<{ token: string; user: { id: string; email: string; isAdmin: boolean } }> {
-    const res = await apiFetch(`${API}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-    return handleRes(res);
+  async login(email: string, password: string, config?: ApiRequestConfig): Promise<{ token: string; user: { id: string; email: string; isAdmin: boolean } }> {
+    return request(http, { url: "/auth/login", method: "POST", data: { email, password } }, config);
   },
 
-  async me(): Promise<{ user: { id: string; email: string; isAdmin: boolean } }> {
-    const res = await apiFetch(`${API}/auth/me`, { credentials: "include" });
-    return handleRes(res);
+  async me(config?: ApiRequestConfig): Promise<{ user: { id: string; email: string; isAdmin: boolean } }> {
+    return request(http, { url: "/auth/me" }, config);
   },
 
-  async sendMagicLink(email: string): Promise<{ success: boolean; message?: string }> {
-    const res = await apiFetch(`${API}/auth/send-magic-link`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    return handleRes(res);
+  async register(email: string, config?: ApiRequestConfig): Promise<{ success?: boolean; message?: string }> {
+    return request(http, { url: "/auth/register", method: "POST", data: { email } }, config);
   },
 
-  async verifyToken(token: string): Promise<{ token: string; user: { id: string; email: string; isAdmin: boolean } }> {
-    const res = await apiFetch(`${API}/auth/verify?token=${encodeURIComponent(token)}`, { credentials: "include" });
-    return handleRes(res);
+  async sendMagicLink(email: string, config?: ApiRequestConfig): Promise<{ success: boolean; message?: string }> {
+    return request(http, { url: "/auth/send-magic-link", method: "POST", data: { email } }, config);
   },
 
-  async getVoteQuota(): Promise<{ used: number; remaining: number; perUser: number; periodHours: number }> {
-    const res = await apiFetch(`${API}/vote/quota`, { credentials: "include" });
-    return handleRes(res);
+  async verifyToken(token: string, config?: ApiRequestConfig): Promise<{ token: string; user: { id: string; email: string; isAdmin: boolean } }> {
+    return request(http, { url: "/auth/verify", params: { token } }, config);
   },
 
-  async getPlayHistory(): Promise<{
+  async getVoteQuota(config?: ApiRequestConfig): Promise<{ used: number; remaining: number; perUser: number; periodHours: number }> {
+    return request(http, { url: "/vote/quota" }, config);
+  },
+
+  async getPlayHistory(config?: ApiRequestConfig): Promise<{
     plays: { songId: string; title: string; author: string; startedAt: string; durationSeconds: number | null }[];
   }> {
-    const res = await apiFetch(`${API}/plays`, { credentials: "include" });
-    return handleRes(res);
+    return request(http, { url: "/plays" }, config);
   },
 
-  async logout() {
-    await apiFetch(`${API}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-  }
+  async logout(config?: ApiRequestConfig) {
+    await request(http, { url: "/auth/logout", method: "POST" }, config);
+  },
 };

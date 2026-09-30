@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,9 @@ export function RankingView() {
       const r = await api.getRanking(100);
       setSongs(r.songs as RankingSong[]);
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setVotingId(null);
     }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { ALLOWED_EMAIL_DOMAIN } from "@/types/api";
 
 export function RegisterPage() {
@@ -30,18 +30,13 @@ export function RegisterPage() {
     }
     setLoading(true);
     try {
-      await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      }).then((r) => {
-        if (!r.ok) return r.json().then((j) => { throw new Error(j.message); });
-        return r.json();
-      });
+      await api.register(email.trim().toLowerCase());
       setSent(true);
       toast({ title: "Wysłano link", description: "Kliknij link w e-mailu, aby potwierdzić rejestrację i zalogować się." });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }

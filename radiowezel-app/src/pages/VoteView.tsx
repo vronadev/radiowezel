@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +78,9 @@ export function VoteView() {
         return next;
       });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
       if (!append) {
         setLibrary([]);
       }
@@ -146,7 +148,9 @@ export function VoteView() {
       setYtUrl("");
       loadRequests();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +164,9 @@ export function VoteView() {
       toast({ title: "Oddano głos", description: voted?.title ? `Na „${voted.title}”` : undefined });
       void loadFeatured(0, false, Math.max(LIBRARY_PAGE, featuredLoadedRef.current));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +181,9 @@ export function VoteView() {
       });
       loadRequests();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setBumpingId(null);
     }

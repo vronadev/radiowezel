@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { extractYoutubeVideoId, youtubeEmbedPreviewUrl } from "@/lib/youtube";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,8 +100,10 @@ export function useSongPreview() {
           },
           { once: true },
         );
-      } catch {
-        toast({ title: "Nie można odtworzyć zajawki", variant: "destructive" });
+      } catch (e) {
+        if (!isApiTimeoutError(e)) {
+          toast({ title: "Nie można odtworzyć zajawki", variant: "destructive" });
+        }
         setPreviewSongId(null);
       }
     },
