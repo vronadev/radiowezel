@@ -5,6 +5,7 @@ import type { IDatabase } from "../../src/interfaces/IDatabase.js";
 import { QueueManager } from "../../src/services/queueManager.js";
 import { SlotSchedule } from "../../src/services/slotSchedule.js";
 import { CountingFileStore, FixedClock, MemoryFileStore, atLocalTime } from "../helpers/testDoubles.js";
+import { localWeekday } from "../../src/utils/localCalendar.js";
 import type { NowPlaying } from "../../src/@types/models.js";
 import type { DataLayer } from "../../src/factories/dataLayerFactory.js";
 
@@ -384,6 +385,161 @@ describe("QueueManager", () => {
     expect(new Set(songIds).size).toBe(3);
     expect(built.data.randomFillOrder).toEqual(expect.arrayContaining(ids));
     expect(new Set(built.data.randomFillOrder).size).toBe(built.data.randomFillOrder?.length);
+  });
+
+  it("after the last slot, plays playlist songs on the next day and defers the rest in vote order", () => {
+    const { layer, fileStore } = setup();
+    const ids = addVerifiedSongs(layer, fileStore, 14, "defer", 180);
+    const outsideHigh = ids[0]!;
+    const outsideLow = ids[1]!;
+    const inside = ids[2]!;
+    const playlistSongIds = ids.slice(2);
+    const playlist = layer.playlistService.create("Tuesday", null);
+    for (const id of playlistSongIds) {
+      layer.playlistService.addSong(playlist, id, "manual");
+    }
+    const clock = new FixedClock(atLocalTime(23, 10));
+    const tuesday = new Date(clock.now().getTime());
+    tuesday.setDate(tuesday.getDate() + 1);
+    layer.scheduleService.replaceCyclic([{ playlistId: playlist, dayOfWeek: localWeekday(tuesday) }]);
+
+    const userId = layer.userService.create("user@zsi.kielce.pl", "hash", false);
+    layer.voteService.addVote(userId, outsideHigh);
+    layer.voteService.addVote(userId, outsideHigh);
+    layer.voteService.addVote(userId, outsideLow);
+    layer.voteService.addVote(userId, inside);
+
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock,
+      slots: [
+        { start: "07:30", end: "08:00" },
+        { start: "20:20", end: "23:04" },
+      ],
+      random: () => 0,
+      randomMinRemaining: 10,
+      randomFillSize: 10,
+    });
+    queueManager.refreshQueueFile();
+    const payload = queueManager.getQueuePayload(null);
+    const random = payload.queue.filter((item) => item.votes === 0);
+    const deferred = payload.queue.filter((item) => item.songId === outsideHigh || item.songId === outsideLow);
+
+    expect(payload.queue[0]?.songId).toBe(inside);
+    expect(localTime(payload.queue[0]?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 30, seconds: 0 });
+    expect(new Date(payload.queue[0]!.estimatedPlayAt!).getDate()).toBe(tuesday.getDate());
+    expect(random).toHaveLength(10);
+    expect(random.every((item) => playlistSongIds.includes(item.songId) && item.songId !== inside)).toBe(true);
+    expect(deferred.map((item) => item.songId)).toEqual([outsideHigh, outsideLow]);
+    expect(payload.queue.indexOf(deferred[0]!)).toBeGreaterThan(payload.queue.indexOf(payload.queue[0]!));
+    expect(payload.queue.indexOf(deferred[0]!)).toBeGreaterThan(payload.queue.indexOf(random[0]!));
+    const wednesday = new Date(tuesday.getTime());
+    wednesday.setDate(wednesday.getDate() + 1);
+    expect(localTime(deferred[0]?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 30, seconds: 0 });
+    expect(new Date(deferred[0]!.estimatedPlayAt!).getDate()).toBe(wednesday.getDate());
+    expect(localTime(deferred[1]?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 33, seconds: 0 });
+    expect(new Date(deferred[1]!.estimatedPlayAt!).getDate()).toBe(wednesday.getDate());
+  });
+
+  it("pushes a deferred vote past a following day that also excludes it", () => {
+    const { layer, fileStore } = setup();
+    const ids = addVerifiedSongs(layer, fileStore, 4, "skip", 180);
+    const outside = ids[0]!;
+    const tuesdaySong = ids[1]!;
+    const wednesdaySong = ids[2]!;
+    const tuesdayList = layer.playlistService.create("Tue", null);
+    const wednesdayList = layer.playlistService.create("Wed", null);
+    layer.playlistService.addSong(tuesdayList, tuesdaySong, "manual");
+    layer.playlistService.addSong(wednesdayList, wednesdaySong, "manual");
+    const clock = new FixedClock(atLocalTime(23, 10));
+    const tuesday = new Date(clock.now().getTime());
+    tuesday.setDate(tuesday.getDate() + 1);
+    const wednesday = new Date(tuesday.getTime());
+    wednesday.setDate(wednesday.getDate() + 1);
+    layer.scheduleService.replaceCyclic([
+      { playlistId: tuesdayList, dayOfWeek: localWeekday(tuesday) },
+      { playlistId: wednesdayList, dayOfWeek: localWeekday(wednesday) },
+    ]);
+    const userId = layer.userService.create("user@zsi.kielce.pl", "hash", false);
+    layer.voteService.addVote(userId, outside);
+    layer.voteService.addVote(userId, outside);
+
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock,
+      slots: [{ start: "07:30", end: "08:00" }],
+      randomMinRemaining: 1,
+      randomFillSize: 1,
+    });
+    const payload = queueManager.getQueuePayload(queueManager.refreshQueueFile().nowPlaying);
+    const deferred = payload.queue.find((item) => item.songId === outside);
+    const thursday = new Date(wednesday.getTime());
+    thursday.setDate(thursday.getDate() + 1);
+    expect(localTime(deferred?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 30, seconds: 0 });
+    expect(new Date(deferred!.estimatedPlayAt!).getDate()).toBe(thursday.getDate());
+    expect(payload.queue.filter((item) => item.votes === 0).every((item) => item.songId === tuesdaySong)).toBe(true);
+  });
+
+  it("treats every playlist scheduled on the upcoming day as playable", () => {
+    const { layer, fileStore } = setup();
+    const ids = addVerifiedSongs(layer, fileStore, 3, "union", 90);
+    const first = layer.playlistService.create("A", null);
+    const second = layer.playlistService.create("B", null);
+    layer.playlistService.addSong(first, ids[0]!, "manual");
+    layer.playlistService.addSong(second, ids[1]!, "manual");
+    const clock = new FixedClock(atLocalTime(23, 10));
+    const tuesday = new Date(clock.now().getTime());
+    tuesday.setDate(tuesday.getDate() + 1);
+    layer.scheduleService.replaceCyclic([
+      { playlistId: first, dayOfWeek: localWeekday(tuesday) },
+      { playlistId: second, dayOfWeek: localWeekday(tuesday) },
+    ]);
+    const userId = layer.userService.create("user@zsi.kielce.pl", "hash", false);
+    layer.voteService.addVote(userId, ids[0]!);
+    layer.voteService.addVote(userId, ids[1]!);
+    layer.voteService.addVote(userId, ids[1]!);
+    layer.voteService.addVote(userId, ids[2]!);
+
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock,
+      slots: [{ start: "07:30", end: "08:00" }],
+      randomMinRemaining: 1,
+      randomFillSize: 1,
+    });
+    const built = queueManager.buildFullQueue();
+    expect(built.queue.map((item) => item.songId).slice(0, 2).sort()).toEqual([ids[0], ids[1]].sort());
+    expect(built.queue.at(-1)?.songId).toBe(ids[2]);
+    expect(built.queue.filter((item) => item.votes === 0)).toHaveLength(0);
+  });
+
+  it("rebuilds once after the last slot for the upcoming day", () => {
+    const fileStore = new CountingFileStore();
+    const { layer } = setup(fileStore);
+    addVerifiedSongs(layer, fileStore, 2, "align");
+    const clock = new FixedClock(atLocalTime(23, 10));
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock,
+      slots: [{ start: "07:30", end: "08:00" }],
+      randomMinRemaining: 1,
+      randomFillSize: 1,
+    });
+
+    queueManager.alignQueueToUpcomingDay();
+    const writes = fileStore.writes;
+    expect(writes).toBeGreaterThan(0);
+    queueManager.alignQueueToUpcomingDay();
+    expect(fileStore.writes).toBe(writes);
+
+    const midday = createQueueManager(layer, fileStore, {
+      clock: new FixedClock(atLocalTime(12, 0)),
+      slots: [
+        { start: "07:30", end: "08:00" },
+        { start: "20:20", end: "23:04" },
+      ],
+      randomMinRemaining: 1,
+      randomFillSize: 1,
+    });
+    const before = fileStore.writes;
+    midday.alignQueueToUpcomingDay();
+    expect(fileStore.writes).toBe(before);
   });
 });
 

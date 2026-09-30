@@ -203,6 +203,11 @@ export const api = {
     return handleRes(res);
   },
 
+  async rebuildQueue(): Promise<{ success: boolean }> {
+    const res = await apiFetch(`${API}/queue/rebuild`, { method: "POST", headers: getHeaders(), credentials: "include" });
+    return handleRes(res);
+  },
+
   async removeSongFromQueue(songId: string): Promise<{ success: boolean }> {
     const res = await apiFetch(`${API}/admin/queue/songs/${songId}`, { method: "DELETE", headers: getHeaders(), credentials: "include" });
     return handleRes(res);
@@ -217,7 +222,11 @@ export const api = {
     return handleRes(res);
   },
 
-  async getEffectivePlaylist(): Promise<{ playlistId: string | null; playlistName: string | null }> {
+  async getEffectivePlaylist(): Promise<{
+    playlistId: string | null;
+    playlistName: string | null;
+    playlists?: { id: string; name: string }[];
+  }> {
     const res = await apiFetch(`${API}/effective-playlist`, { credentials: "include" });
     return handleRes(res);
   },

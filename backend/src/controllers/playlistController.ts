@@ -15,15 +15,15 @@ export class PlaylistController {
   ) {}
 
   getEffective = (_request: Request, response: Response): void => {
-    const playlistId = this.playlistService.getEffectivePlaylistId();
-    if (!playlistId) {
-      response.json({ playlistId: null, playlistName: null });
-      return;
-    }
-    const playlist = this.playlistService.getById(playlistId);
+    const playlists = this.playlistService
+      .getEffectivePlaylistIds()
+      .map((id) => this.playlistService.getById(id))
+      .filter((playlist): playlist is NonNullable<typeof playlist> => !!playlist)
+      .map((playlist) => ({ id: playlist.id, name: playlist.name }));
     response.json({
-      playlistId: playlist?.id || null,
-      playlistName: playlist?.name || null,
+      playlistId: playlists[0]?.id ?? null,
+      playlistName: playlists[0]?.name ?? null,
+      playlists,
     });
   };
 
@@ -121,6 +121,9 @@ export class PlaylistController {
     if (!updated) {
       response.status(404).json({ message: ErrorMessages.notFound });
       return;
+    }
+    if (excludeFromRandom !== undefined || excludeFromVoting !== undefined) {
+      this.queueManager.refreshQueueFile();
     }
     response.json({ success: true });
   };

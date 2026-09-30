@@ -64,6 +64,8 @@ function createPlayer(options: {
         storedNowPlaying = value;
       },
       consumePlayedSong: (songId: string) => consumed.push(songId),
+      isSongAllowedNow: () => true,
+      alignQueueToUpcomingDay: () => {},
     } as unknown as QueueManager,
     songService: { getSongsById: () => ({ [song.id]: song }) } as unknown as SongService,
     slotSchedule: new SlotSchedule([{ start: "08:45", end: "08:50" }], clock),
@@ -182,6 +184,8 @@ describe("PlayerFFMPEG", () => {
           storedNowPlaying = value;
         },
         consumePlayedSong: () => {},
+        isSongAllowedNow: () => true,
+        alignQueueToUpcomingDay: () => {},
       } as unknown as QueueManager,
       songService: {
         getSongsById: () => ({ missing: missingSong, "song-2": playableSong }),
@@ -301,6 +305,8 @@ describe("PlayerFFMPEG", () => {
           storedNowPlaying = value;
         },
         consumePlayedSong: () => {},
+        isSongAllowedNow: () => true,
+        alignQueueToUpcomingDay: () => {},
       } as unknown as QueueManager,
       songService: { getSongsById: () => ({ [song.id]: song }) } as unknown as SongService,
       slotSchedule: new SlotSchedule([{ start: "08:45", end: "08:50" }], clock),
@@ -323,6 +329,39 @@ describe("PlayerFFMPEG", () => {
 
     player.tick();
     expect(spawned).toHaveLength(1);
+    player.dispose();
+  });
+
+  it("skips a queued song that the current playlist does not allow", async () => {
+    const clock = new FixedClock(atLocalTime(8, 47));
+    const fileStore = new MemoryFileStore();
+    fileStore.addSongFile(song.localPath!);
+    fileStore.addSongFile("/tmp/song-2.mp3");
+    const allowed: QueueItem = { ...queueItem, id: "q-song-2", songId: "song-2", title: "Allowed" };
+    const allowedSong: Song = { ...song, id: "song-2", localPath: "/tmp/song-2.mp3", title: "Allowed" };
+    let storedNowPlaying: NowPlaying | null = null;
+    const player = new PlayerFFMPEG({
+      queueManager: {
+        refreshQueueFile: () => ({}),
+        readQueueFile: () => ({ nowPlaying: storedNowPlaying, queue: [queueItem, allowed], updatedAt: null }),
+        setNowPlaying: (value: NowPlaying | null) => {
+          storedNowPlaying = value;
+        },
+        consumePlayedSong: () => {},
+        isSongAllowedNow: (songId: string) => songId === "song-2",
+        alignQueueToUpcomingDay: () => {},
+      } as unknown as QueueManager,
+      songService: { getSongsById: () => ({ [song.id]: song, "song-2": allowedSong }) } as unknown as SongService,
+      slotSchedule: new SlotSchedule([{ start: "08:45", end: "08:50" }], clock),
+      fadeOutSecondsBeforeEnd: 5,
+      ffplayPath: "ffplay",
+      ffmpegPath: "ffmpeg",
+      clock,
+      fileStore,
+      spawnProcess: () => new FakeProcess(),
+    });
+    player.tick();
+    await vi.waitFor(() => expect(player.getStatus().nowPlaying?.songId).toBe("song-2"));
     player.dispose();
   });
 });
