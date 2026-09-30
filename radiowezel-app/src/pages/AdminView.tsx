@@ -65,13 +65,14 @@ export function AdminView() {
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [importingPlaylist, setImportingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string>("");
-  const [cyclicSchedule, setCyclicSchedule] = useState<Record<number, string>>({});
+  const [cyclicSchedule, setCyclicSchedule] = useState<Record<number, string[]>>({});
   const [oneOffList, setOneOffList] = useState<{ id: string; date: string; playlistId: string }[]>([]);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [quotaPerUser, setQuotaPerUser] = useState(5);
   const [quotaPeriodHours, setQuotaPeriodHours] = useState(24);
   const [savingQuota, setSavingQuota] = useState(false);
   const [playerPaused, setPlayerPaused] = useState(false);
+  const [rebuildingQueue, setRebuildingQueue] = useState(false);
   const [syncingPlaylistId, setSyncingPlaylistId] = useState<string | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState<string | null>(null);
   const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
@@ -168,12 +169,28 @@ export function AdminView() {
   useEffect(() => {
     api.getPlaylistSchedule().then((s) => {
       setActivePlaylistId(s.activePlaylistId || "");
-      const cyclic: Record<number, string> = {};
-      s.cyclic.forEach((c) => { cyclic[c.dayOfWeek] = c.playlistId; });
+      const cyclic: Record<number, string[]> = {};
+      s.cyclic.forEach((c) => {
+        cyclic[c.dayOfWeek] = [...(cyclic[c.dayOfWeek] ?? []), c.playlistId];
+      });
       setCyclicSchedule(cyclic);
       setOneOffList(s.oneOff.map((o) => ({ id: o.id, date: o.date, playlistId: o.playlistId })));
     }).catch(() => {});
   }, []);
+
+  const rebuildQueue = async () => {
+    setRebuildingQueue(true);
+    try {
+      await api.rebuildQueue();
+      const queue = await api.getQueue();
+      setQueueData(queue as typeof queueData);
+      toast({ title: "Kolejka odświeżona" });
+    } catch (e) {
+      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRebuildingQueue(false);
+    }
+  };
 
   const togglePlayerPause = async () => {
     try {
@@ -347,9 +364,9 @@ export function AdminView() {
     try {
       await api.patchPlaylistSchedule({
         activePlaylistId: activePlaylistId || null,
-        cyclic: Object.entries(cyclicSchedule)
-          .filter(([, pid]) => pid)
-          .map(([day, playlistId]) => ({ playlistId, dayOfWeek: parseInt(day, 10) })),
+        cyclic: Object.entries(cyclicSchedule).flatMap(([day, playlistIds]) =>
+          playlistIds.filter(Boolean).map((playlistId) => ({ playlistId, dayOfWeek: parseInt(day, 10) })),
+        ),
         oneOff: oneOffList.filter((o) => o.date && o.playlistId).map((o) => ({ date: o.date, playlistId: o.playlistId })),
       });
       toast({ title: "Zapisano harmonogram playlist" });
@@ -370,7 +387,13 @@ export function AdminView() {
 
   return (
     <div className="w-full min-w-0 space-y-6 p-4 overflow-x-hidden">
-      <h1 className="text-2xl font-bold">Panel administracji</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Panel administracji</h1>
+        <Button variant="outline" onClick={rebuildQueue} disabled={rebuildingQueue}>
+          {rebuildingQueue ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          Odśwież kolejkę
+        </Button>
+      </div>
 
       <Tabs defaultValue="requests" className="w-full">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
@@ -841,7 +864,8 @@ export function AdminView() {
             Harmonogram playlist
           </CardTitle>
           <CardDescription>
-            Domyślna playlista ogranicza, co może być odtwarzane. Harmonogram cykliczny (np. piątek) i jednorazowe daty nadpisują domyślną.
+            Domyślna playlista ogranicza, co może być odtwarzane. Harmonogram cykliczny i jednorazowe daty nadpisują domyślną.
+            Na jeden dzień można przypisać kilka playlist — grają piosenki z każdej z nich.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -859,23 +883,62 @@ export function AdminView() {
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Cyklicznie (dzień tygodnia → playlista)</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {DAY_NAMES.map((name, dayOfWeek) => (
-                <div key={dayOfWeek} className="flex items-center gap-2">
-                  <span className="w-28 text-sm">{name}</span>
-                  <select
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm flex-1"
-                    value={cyclicSchedule[dayOfWeek] || ""}
-                    onChange={(e) => setCyclicSchedule((prev) => ({ ...prev, [dayOfWeek]: e.target.value }))}
-                  >
-                    <option value="">-</option>
-                    {playlists.map((pl) => (
-                      <option key={pl.id} value={pl.id}>{pl.name}</option>
+            <Label>Cyklicznie (dzień tygodnia → playlisty)</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {DAY_NAMES.map((name, dayOfWeek) => {
+                const selected = cyclicSchedule[dayOfWeek]?.length ? cyclicSchedule[dayOfWeek] : [""];
+                return (
+                  <div key={dayOfWeek} className="space-y-1">
+                    <span className="text-sm">{name}</span>
+                    {selected.map((playlistId, index) => (
+                      <div key={`${dayOfWeek}-${index}`} className="flex items-center gap-2">
+                        <select
+                          className="rounded-md border border-input bg-background px-2 py-1 text-sm flex-1"
+                          value={playlistId}
+                          onChange={(e) =>
+                            setCyclicSchedule((prev) => {
+                              const next = [...(prev[dayOfWeek]?.length ? prev[dayOfWeek] : [""])];
+                              next[index] = e.target.value;
+                              return { ...prev, [dayOfWeek]: next.filter((id, row) => id || row === index) };
+                            })
+                          }
+                        >
+                          <option value="">-</option>
+                          {playlists.map((pl) => (
+                            <option key={pl.id} value={pl.id}>{pl.name}</option>
+                          ))}
+                        </select>
+                        {playlistId ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setCyclicSchedule((prev) => ({
+                                ...prev,
+                                [dayOfWeek]: (prev[dayOfWeek] ?? []).filter((_, row) => row !== index),
+                              }))
+                            }
+                          >
+                            Usuń
+                          </Button>
+                        ) : null}
+                      </div>
                     ))}
-                  </select>
-                </div>
-              ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setCyclicSchedule((prev) => ({
+                          ...prev,
+                          [dayOfWeek]: [...(prev[dayOfWeek] ?? []).filter(Boolean), ""],
+                        }))
+                      }
+                    >
+                      + Playlist
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="space-y-2">

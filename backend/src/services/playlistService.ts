@@ -10,8 +10,17 @@ export class PlaylistService {
     private readonly settingsService: SettingsService,
   ) {}
 
+  getEffectivePlaylistIds(at: Date = new Date()): string[] {
+    const scheduled = this.scheduleService.resolveScheduledPlaylistIds(at);
+    if (scheduled && scheduled.length > 0) {
+      return scheduled;
+    }
+    const active = this.settingsService.getActivePlaylistId();
+    return active ? [active] : [];
+  }
+
   getEffectivePlaylistId(at: Date = new Date()): string | null {
-    return this.scheduleService.resolveScheduledPlaylistId(at) ?? this.settingsService.getActivePlaylistId();
+    return this.getEffectivePlaylistIds(at)[0] ?? null;
   }
 
   getSongIdsInPlaylist(playlistId: string | null): string[] | null {
@@ -21,22 +30,31 @@ export class PlaylistService {
     return this.playlistRepository.getSongIdsInPlaylist(playlistId);
   }
 
+  /** `null` means every verified song is allowed. An empty list means a playlist is in effect and it has no songs. */
+  getAllowedSongIdsAt(at: Date = new Date()): string[] | null {
+    const playlistIds = this.getEffectivePlaylistIds(at);
+    if (!playlistIds.length) {
+      return null;
+    }
+    return this.playlistRepository.getSongIdsInPlaylists(playlistIds);
+  }
+
   getAllowedSongIds(): string[] | null {
-    return this.getSongIdsInPlaylist(this.getEffectivePlaylistId());
+    return this.getAllowedSongIdsAt(new Date());
   }
 
   getSongIdsExcludedFromVoting(): Set<string> {
     return this.playlistRepository.getSongIdsExcludedFromVoting();
   }
 
-  getSongIdsExcludedFromRandom(effectivePlaylistId: string | null): Set<string> {
-    return this.playlistRepository.getSongIdsExcludedFromRandom(effectivePlaylistId ?? "");
+  getSongIdsExcludedFromRandom(effectivePlaylistIds: string[]): Set<string> {
+    return this.playlistRepository.getSongIdsExcludedFromRandom(effectivePlaylistIds);
   }
 
   getVotableSongIds(verifiedSongIds: string[]): string[] {
-    const effectivePlaylistId = this.getEffectivePlaylistId();
-    if (effectivePlaylistId) {
-      return this.getSongIdsInPlaylist(effectivePlaylistId) ?? [];
+    const allowed = this.getAllowedSongIdsAt(new Date());
+    if (allowed) {
+      return allowed;
     }
     const excluded = this.getSongIdsExcludedFromVoting();
     return verifiedSongIds.filter((id) => !excluded.has(id));

@@ -4,22 +4,22 @@ import type { IDatabase } from "../interfaces/IDatabase.js";
 export class PlaylistScheduleRepository {
   constructor(private readonly database: IDatabase) {}
 
-  findOneOffPlaylistId(dateStr: string): string | undefined {
-    const row = this.database
+  findOneOffPlaylistIds(dateStr: string): string[] {
+    return this.database
       .prepare<{ playlist_id: string }>(
-        "SELECT playlist_id FROM playlist_schedule WHERE type = 'one_off' AND schedule_date = ?",
+        "SELECT playlist_id FROM playlist_schedule WHERE type = 'one_off' AND schedule_date = ? ORDER BY playlist_id",
       )
-      .get(dateStr);
-    return row?.playlist_id;
+      .all(dateStr)
+      .map((row) => row.playlist_id);
   }
 
-  findCyclicPlaylistId(dayOfWeek: number): string | undefined {
-    const row = this.database
+  findCyclicPlaylistIds(dayOfWeek: number): string[] {
+    return this.database
       .prepare<{ playlist_id: string }>(
-        "SELECT playlist_id FROM playlist_schedule WHERE type = 'cyclic' AND day_of_week = ?",
+        "SELECT playlist_id FROM playlist_schedule WHERE type = 'cyclic' AND day_of_week = ? ORDER BY playlist_id",
       )
-      .get(dayOfWeek);
-    return row?.playlist_id;
+      .all(dayOfWeek)
+      .map((row) => row.playlist_id);
   }
 
   listCyclic(): CyclicScheduleItem[] {

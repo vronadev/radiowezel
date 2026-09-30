@@ -127,6 +127,26 @@ export class SlotSchedule {
     return cursor;
   }
 
+  /** Music end of the latest slot on the calendar day of `day`. */
+  lastMusicEndOn(day: Date): Date | null {
+    if (!this.slots.length) {
+      return null;
+    }
+    let latest = -1;
+    for (const slot of this.slots) {
+      const start = this.parseTimeToSeconds(slot.start);
+      const end = this.parseTimeToSeconds(slot.end);
+      const musicEnd = this.musicEndSeconds({ start, end });
+      if (musicEnd > latest) {
+        latest = musicEnd;
+      }
+    }
+    if (latest < 0) {
+      return null;
+    }
+    return this.dateFromSeconds(latest, day);
+  }
+
   getScheduleContext(): ScheduleContext {
     if (!this.slots.length) {
       return { currentSlot: null, nextSlot: null, inBreak: false };

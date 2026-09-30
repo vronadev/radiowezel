@@ -5,6 +5,7 @@ import type { AuthMiddleware } from "../middlewares/auth.js";
 export function createQueueRouter(controller: QueueController, auth: AuthMiddleware): Router {
   const router = Router();
   router.route("/").get(auth.authenticate, controller.getQueue);
+  router.route("/rebuild").post(auth.authenticate, auth.authorizeAdmin, controller.rebuild);
   router.route("/now-playing").get(auth.authenticate, controller.getNowPlaying);
   return router;
 }

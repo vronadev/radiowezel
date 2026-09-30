@@ -25,4 +25,9 @@ export class QueueController {
     this.queueManager.removeQueuedSong(routeParam(request, "songId"));
     response.json({ success: true });
   };
+
+  rebuild = (_request: Request, response: Response): void => {
+    this.queueManager.refreshQueueFile();
+    response.json({ success: true });
+  };
 }
