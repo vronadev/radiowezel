@@ -139,6 +139,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/verify" element={<VerifyPage />} />
           <Route path="/public/queue" element={<PublicQueueView />} />
+          <Route path="/public/history" element={<HistoryView publicAccess />} />
           <Route
             path="/"
             element={

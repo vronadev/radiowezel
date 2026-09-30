@@ -7,3 +7,9 @@ export function createPlayRouter(controller: PlayController, auth: AuthMiddlewar
   router.route("/").get(auth.authenticate, controller.getHistory);
   return router;
 }
+
+export function createPublicPlayRouter(controller: PlayController): Router {
+  const router = Router();
+  router.route("/plays").get(controller.getHistory);
+  return router;
+}

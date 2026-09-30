@@ -11,7 +11,7 @@ import { createSettingsRouter } from "./settings.routes.js";
 import { createAdminSongRouter, createSongRouter } from "./song.routes.js";
 import { createVoteRouter } from "./vote.routes.js";
 import { createSongRequestRouter } from "./songRequest.routes.js";
-import { createPlayRouter } from "./play.routes.js";
+import { createPlayRouter, createPublicPlayRouter } from "./play.routes.js";
 
 export function createApiRouter(
   auth: AuthMiddleware,
@@ -22,6 +22,7 @@ export function createApiRouter(
 
   router.use("/auth", createAuthRouter(controllers.auth, auth, requireSchoolEmail));
   router.use("/public", createPublicQueueRouter(controllers.queue));
+  router.use("/public", createPublicPlayRouter(controllers.play));
   router.use("/queue", createQueueRouter(controllers.queue, auth));
   router.route("/effective-playlist").get(auth.authenticate, controllers.playlist.getEffective);
   router.use("/songs", createSongRouter(controllers.song, auth));

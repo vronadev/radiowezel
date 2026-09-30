@@ -328,6 +328,13 @@ export const api = {
     return handleRes(res);
   },
 
+  async getPublicPlayHistory(): Promise<{
+    plays: { songId: string; title: string; author: string; startedAt: string; durationSeconds: number | null }[];
+  }> {
+    const res = await apiFetch(`${API}/public/plays`);
+    return handleRes(res);
+  },
+
   async logout() {
     await apiFetch(`${API}/auth/logout`, {
       method: "POST",

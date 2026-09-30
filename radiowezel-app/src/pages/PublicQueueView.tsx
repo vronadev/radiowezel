@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -74,7 +75,12 @@ export function PublicQueueView() {
   return (
     <div className="w-full min-w-0 space-y-6 p-4 overflow-x-hidden">
       <div className="flex items-center justify-between flex-wrap gap-2 min-w-0">
-        <h1 className="text-2xl font-bold">Kolejka piosenek</h1>
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-bold">Kolejka piosenek</h1>
+          <Link to="/public/history" className="text-sm text-primary underline">
+            Historia odtwarzania
+          </Link>
+        </div>
         <LogoSet variant="header" />
       </div>
 

@@ -146,6 +146,10 @@ export function LoginPage() {
             <Link to="/public/queue" className="text-primary underline">
               Zobacz kolejkę bez logowania
             </Link>
+            {" · "}
+            <Link to="/public/history" className="text-primary underline">
+              Historia odtwarzania
+            </Link>
           </p>
           {!showPasswordLogin ? (
             <p className="text-center">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useRealtime } from "@/hooks/useRealtime";
 import { GitCommitHorizontal } from "lucide-react";
@@ -29,17 +30,17 @@ function formatStamp(iso: string): string {
   });
 }
 
-export function HistoryView() {
+export function HistoryView({ publicAccess = false }: { publicAccess?: boolean }) {
   const [plays, setPlays] = useState<PlayRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    api
-      .getPlayHistory()
+    const request = publicAccess ? api.getPublicPlayHistory() : api.getPlayHistory();
+    request
       .then((result) => setPlays(Array.isArray(result.plays) ? result.plays : []))
       .catch(() => setPlays([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [publicAccess]);
 
   useEffect(() => {
     load();
@@ -49,9 +50,21 @@ export function HistoryView() {
 
   return (
     <div className="w-full min-w-0 space-y-6 p-4 overflow-x-hidden">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold">Historia odtwarzania</h1>
-        <p className="text-sm text-muted-foreground">Ostatnie 7 dni, od najnowszych.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold">Historia odtwarzania</h1>
+          <p className="text-sm text-muted-foreground">Ostatnie 7 dni, od najnowszych.</p>
+        </div>
+        {publicAccess && (
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link to="/public/queue" className="text-primary underline">
+              Kolejka
+            </Link>
+            <Link to="/login" className="text-primary underline">
+              Zaloguj się
+            </Link>
+          </div>
+        )}
       </div>
       {loading ? (
         <p className="text-muted-foreground">Ładowanie…</p>
