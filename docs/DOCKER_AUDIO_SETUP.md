@@ -85,7 +85,7 @@ FFPROBE_PATH=/usr/bin/ffprobe
 FFMPEG_LOCATION=/usr/bin
 ```
 
-`TZ` is passed into the container (`docker-compose.yml` defaults to `Europe/Warsaw` if it is omitted). Change it only if the radio should follow a different IANA timezone. Slot hours (`08:45`) and cyclic/one-off playlist days use this local time, not UTC.
+`TZ` is passed into the container (`docker-compose.yml` defaults to `Europe/Warsaw` if it is omitted). Change it only if the radio should follow a different IANA timezone. Slot hours (`08:45`), open weekdays (`schedule.activeDays`, default Monday–Friday), and cyclic/one-off playlist days use this local time, not UTC. Optional per-slot `volumePercentage` is applied when a track starts. See the playback section in [README.md](../README.md).
 
 `host.docker.internal` is the Windows host from Docker Desktop. Compose also adds `extra_hosts: host.docker.internal:host-gateway` for other Docker engines.
 

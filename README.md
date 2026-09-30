@@ -3,7 +3,7 @@
 
 # Radiowęzeł
 
-School radio: students vote on tracks, the queue plays only during configured breaks, and admins moderate requests. The UI is React (Vite); the backend is Express + SQLite and plays audio with `ffplay`.
+School radio: students vote on tracks, the queue plays during configured breaks on open weekdays, and admins moderate requests from YouTube and YouTube Music. The UI is React (Vite); the backend is Express + SQLite and plays audio with `ffplay`.
 
 ## Layout
 
@@ -108,6 +108,43 @@ The browser only talks to the HTTPS hostname. It never opens `10.1.0.6:3001`. Co
 
 ---
 
+## Playback, queue, and voting
+
+Breaks still come from `schedule.slots`. Which calendar days those breaks run on comes from `schedule.activeDays` (default Monday–Friday). A day with no checkmark in **Admin → Harmonogram → Dni odtwarzania** is closed: nothing plays, and estimates move to the next open day. An empty day list closes every day. The first time an admin saves that form, the chosen days are stored in SQLite and override `config.json` and `SCHEDULE_ACTIVE_DAYS` on later starts. Until that save, startup uses the config or env list, or Monday–Friday when neither is set.
+
+Playlist rules for a day, in order:
+
+- A one-off date replaces the cyclic weekday for that date.
+- Several playlists on the same day play the union of their songs.
+- With no schedule row, the single default playlist applies. With no default playlist, every verified song can play.
+
+While a playlist is in effect, the player starts only songs from it. A voted song that is outside that set stays in the queue, keeps its place among the other deferred songs, and gets an estimate on the next later day that allows it (looked up for up to 21 days). If no later day allows it, the estimate is empty. A song that is on the day's playlist can play that day even when a deferred song sits ahead of it in the vote list. Inside the allowed set, order is current votes, then `voteTieBreakMode`.
+
+Random fill still aims for `queue.randomFillSize` songs (default 10). Deferred votes do not count toward that fill. The random songs are taken from the playlist of the day the queue is being built for.
+
+The queue file is rebuilt when someone votes, when a song ends, when a song is verified or its playlist membership changes, when the schedule is saved, when an admin calls `POST /api/queue/rebuild`, and once after the last slot when the next open day is a different date. Rebuilding leaves the current track running.
+
+Queue screens show a clock time when the estimate is today, and a short weekday plus date when it falls on another day.
+
+On **Głosowanie**, songs that already have votes in this cycle stay first (current votes, then the configured tie-break). Other songs you can vote for follow, ordered by lifetime votes, then title, artist, and id. Songs you cannot vote for stay last. Each card shows the lifetime total as gray `łącznie N` and the current-cycle count on the thumbs-up.
+
+Each break can set `"volumePercentage": 0`–`100`. `ffplay` uses that value when a song starts in the slot. A missing or invalid value plays at 100%. A song that is already playing keeps the volume it started with; the next song picks up the slot that is active when it starts. There is no slot slider in the admin UI — set this in `config.json`.
+
+**Zgłoszenia** (`/requests`) and the vote form accept a YouTube or YouTube Music link to a track (`youtube.com`, `music.youtube.com`, `youtu.be`, shorts, embed, live). Playlist-only links are rejected.
+
+The browser API client waits 15 seconds. A timed-out request shows “Przekroczono czas oczekiwania” and can be retried.
+
+These responses still return the old JSON, and they send `Deprecation: true`:
+
+| Call | Use instead |
+|---|---|
+| `GET /api/queue/now-playing` | `GET /api/queue` (`nowPlaying` plus the queue) |
+| `PATCH /api/admin/songs/:id/queue-votes` | `POST /api/vote` |
+| `GET /api/admin/songs/:id/download-status` | `GET /api/admin/songs/download-queue` |
+| `GET /api/effective-playlist` fields `playlistId` and `playlistName` | the `playlists` array on the same response (a day can have more than one) |
+
+---
+
 ## Configuration reference
 
 Environment variables override the same keys in `config.json` when both are set. Do not commit real `.env` or `config.json` secrets.
@@ -122,13 +159,14 @@ Copy from `backend/config.example.json`. Used for school-specific settings that 
 | `allowedEmailDomain` | Email domain allowed to register / magic-link (e.g. `zsi.kielce.pl`). Overridable with `ALLOWED_EMAIL_DOMAIN`. |
 | `adminEmails` | Addresses that get the admin UI. |
 | `adminEmail` / `adminPassword` | Bootstrap admin created on first start if that user does not exist. Changing the password later is a database update, not a restart. |
-| `schedule.slots` | Breaks as `{ "start": "HH:MM", "end": "HH:MM" }` in **container local time** (`TZ`). Playback only runs inside these windows after the start bell offset and until the end bell offset. |
+| `schedule.slots` | Breaks as `{ "start": "HH:MM", "end": "HH:MM" }` in **container local time** (`TZ`). Optional `"volumePercentage": 0`–`100` (default 100 when omitted). Playback only runs inside these windows after the start bell offset and until the end bell offset, and only on an open day. |
+| `schedule.activeDays` | Weekday names (`"monday"` … `"sunday"`, any case) or `Date#getDay()` numbers `0`–`6`. Names and numbers can be mixed. Default `["monday","tuesday","wednesday","thursday","friday"]`. `[]` closes every day. Overridable with `SCHEDULE_ACTIVE_DAYS` (comma-separated). After the first **Harmonogram** save, the SQLite value wins over both. |
 | `schedule.bellStartOffsetSeconds` | Start music this many seconds **after** the slot `start` (opening bell window). Playback and queue ETAs use `start + bellStartOffsetSeconds`. Default `30`. Overridable with `BELL_START_OFFSET_SECONDS`. |
 | `schedule.bellEndOffsetSeconds` | Stop music this many seconds **before** the slot `end` (closing bell window). Playback and queue ETAs use `end - bellEndOffsetSeconds`. Fade-out finishes at that instant. Default `30`. Overridable with `BELL_END_OFFSET_SECONDS`. |
 | `schedule.fadeOutSecondsBeforeEnd` | Start the live fade this many seconds before music stop (`end - bellEndOffsetSeconds`). Fade ends at the music stop, not the calendar slot end. Overridable with `FADE_OUT_SECONDS_BEFORE_END`. |
 | `voteTieBreakMode` | Equal-vote queue/library order. **Default `oldest_vote`**. Also `older_latest_vote` (earlier latest vote wins) or `newest_vote` (later latest vote wins, previous behaviour). Top-level field, next to `schedule` — not inside the slots list. Overridable with `VOTE_TIE_BREAK_MODE`. |
 | `dataDir` / `songsDir` / `queueFilePath` | Local paths if you are **not** using Docker. Docker compose forces `/app/data` (and friends) via env. |
-| `queue.randomMinRemaining` / `queue.randomFillSize` | Random backfill of the play queue (votes always win). Overridable with `QUEUE_RANDOM_*`. |
+| `queue.randomMinRemaining` / `queue.randomFillSize` | Random backfill from that day's playlist. Voted songs that are deferred to a later day do not count toward the fill. Overridable with `QUEUE_RANDOM_*`. |
 | `downloads.maxConcurrency` / `maxAttempts` / `retryDelayMs` | Background YouTube downloads. Overridable with `DOWNLOAD_*`. |
 | `smtp` | `transport` (`smtp` or `sendmail`), `host`, `port`, `secure`, `user`, `pass`, `from`, `sendmailPath`. **`smtp`:** nodemailer connects to `host` with `user`/`pass` (default port **587**). **`sendmail`:** nodemailer pipes to `sendmailPath`; in Docker, msmtp uses the same `host`/`port`/`secure`/`from` with no login (default port **25**, default host `host.docker.internal` if unset). Set `port` / `SMTP_PORT` yourself if the mail server listens elsewhere. Without `host` (smtp mode) emails are skipped. Env: `SMTP_TRANSPORT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SENDMAIL_PATH`. |
 | `ffmpegLocation` | Directory containing ffmpeg on a **non-Docker** Windows install. Docker images set `FFMPEG_LOCATION=/usr/bin`. |
@@ -151,6 +189,7 @@ Used by `backend/docker-compose.yml` and by the root one-host compose (`env_file
 | `QUEUE_RANDOM_MIN_REMAINING` / `QUEUE_RANDOM_FILL_SIZE` | Random queue backfill. |
 | `VOTE_TIE_BREAK_MODE` | Optional override of `config.json` `voteTieBreakMode`. |
 | `BELL_START_OFFSET_SECONDS` / `BELL_END_OFFSET_SECONDS` / `FADE_OUT_SECONDS_BEFORE_END` | Optional overrides of `config.json` schedule music offsets. |
+| `SCHEDULE_ACTIVE_DAYS` | Optional override of `schedule.activeDays`, for example `monday,tuesday,wednesday,thursday,friday`. Ignored after an admin saves **Dni odtwarzania**. |
 | `DOWNLOAD_MAX_CONCURRENCY` / `DOWNLOAD_MAX_ATTEMPTS` / `DOWNLOAD_RETRY_DELAY_MS` | Download worker limits. |
 | `ALLOWED_EMAIL_DOMAIN` | Optional override of `allowedEmailDomain`. |
 | `SMTP_*` | Optional overrides of `config.json` `smtp`. With `SMTP_TRANSPORT=sendmail`, `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_FROM` configure msmtp’s connection to the mail server (`SMTP_PORT` defaults to **25**; override for a non-standard submission port). `SMTP_USER` / `SMTP_PASS` are ignored. |

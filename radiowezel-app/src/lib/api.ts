@@ -264,6 +264,12 @@ export const api = {
   }> {
     return request(http, { url: "/plays" }, config);
   },
+  
+  async getPublicPlayHistory(config?: ApiRequestConfig): Promise<{
+    plays: { songId: string; title: string; author: string; startedAt: string; durationSeconds: number | null }[];
+  }> {
+    return request(http, { url: "/public/plays" }, config);
+  },
 
   async logout(config?: ApiRequestConfig) {
     await request(http, { url: "/auth/logout", method: "POST" }, config);
