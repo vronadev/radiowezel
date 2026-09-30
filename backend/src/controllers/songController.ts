@@ -11,6 +11,7 @@ import type { SongService } from "../services/songService.js";
 import type { SongVerificationService } from "../services/songVerificationService.js";
 import type { VoteService } from "../services/voteService.js";
 import type { IRealtimeHub } from "../realtime/events.js";
+import { markDeprecatedRoute } from "../http/deprecation.js";
 import { applyLibraryOrder } from "../http/libraryOrder.js";
 import { VOTE_TIE_BREAK_MODE, type VoteTieBreakMode } from "../config/voteTieBreak.js";
 
@@ -144,7 +145,12 @@ export class SongController {
     response.json({ success: true });
   };
 
+  /**
+   * @deprecated PATCH /api/admin/songs/:id/queue-votes writes a vote count without a vote record.
+   * Use POST /api/vote. Playback clears the current count through VoteService.resetQueueVotesForSong.
+   */
   setQueueVotes = (request: Request, response: Response): void => {
+    markDeprecatedRoute(response, "PATCH /api/admin/songs/:id/queue-votes", "POST /api/vote");
     const id = routeParam(request, "id");
     const { count } = request.body || {};
     const song = this.songService.getById(id);
@@ -184,7 +190,12 @@ export class SongController {
     response.json(this.verification.getQueue());
   };
 
+  /**
+   * @deprecated GET /api/admin/songs/:id/download-status looks up one song.
+   * Use GET /api/admin/songs/download-queue, which lists every download.
+   */
   getDownloadStatus = (request: Request, response: Response): void => {
+    markDeprecatedRoute(response, "GET /api/admin/songs/:id/download-status", "GET /api/admin/songs/download-queue");
     const id = routeParam(request, "id");
     const status = this.verification.getStatus(id);
     if (!status) {

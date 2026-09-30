@@ -25,6 +25,21 @@ export interface Playlist {
   songCount?: number;
 }
 
+/** GET /api/effective-playlist. `playlists` is the full set for the day. */
+export interface EffectivePlaylistResponse {
+  /**
+   * @deprecated First effective playlist only. A day can include several playlists.
+   * Read `playlists` instead.
+   */
+  playlistId: string | null;
+  /**
+   * @deprecated Name of `playlistId` only.
+   * Read `playlists` instead.
+   */
+  playlistName: string | null;
+  playlists: { id: string; name: string }[];
+}
+
 export interface PlaylistSongRow {
   playlistId: string;
   songId: string;

@@ -19,10 +19,17 @@ export class PlaylistService {
     return active ? [active] : [];
   }
 
+  /**
+   * @deprecated Returns only the first effective playlist. A day can include several.
+   * Use getEffectivePlaylistIds, or GET /api/effective-playlist (`playlists`).
+   */
   getEffectivePlaylistId(at: Date = new Date()): string | null {
     return this.getEffectivePlaylistIds(at)[0] ?? null;
   }
 
+  /**
+   * @deprecated Looks up one playlist. Use getSongIdsInPlaylists or getAllowedSongIdsAt.
+   */
   getSongIdsInPlaylist(playlistId: string | null): string[] | null {
     if (!playlistId) {
       return null;

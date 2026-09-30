@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { EffectivePlaylistResponse } from "../@types/models.js";
 import { ErrorMessages } from "../constants/errorMessages.js";
 import { routeParam } from "../middlewares/routeParam.js";
 import type { QueueManager } from "../services/queueManager.js";
@@ -20,11 +21,12 @@ export class PlaylistController {
       .map((id) => this.playlistService.getById(id))
       .filter((playlist): playlist is NonNullable<typeof playlist> => !!playlist)
       .map((playlist) => ({ id: playlist.id, name: playlist.name }));
-    response.json({
+    const body: EffectivePlaylistResponse = {
       playlistId: playlists[0]?.id ?? null,
       playlistName: playlists[0]?.name ?? null,
       playlists,
-    });
+    };
+    response.json(body);
   };
 
   getPublicById = (request: Request, response: Response): void => {

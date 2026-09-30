@@ -167,12 +167,18 @@ export const api = {
     return request(http, { url: `/admin/queue/songs/${songId}`, method: "DELETE" }, config);
   },
 
+  /**
+   * @deprecated PATCH /api/admin/songs/:id/queue-votes writes a vote count without a vote record.
+   * Use vote().
+   */
   async setSongQueueVotes(songId: string, count: number, config?: ApiRequestConfig): Promise<{ success: boolean; count: number }> {
     return request(http, { url: `/admin/songs/${songId}/queue-votes`, method: "PATCH", data: { count } }, config);
   },
 
   async getEffectivePlaylist(config?: ApiRequestConfig): Promise<{
+    /** @deprecated First playlist only. Read `playlists`. */
     playlistId: string | null;
+    /** @deprecated Name of `playlistId` only. Read `playlists`. */
     playlistName: string | null;
     playlists?: { id: string; name: string }[];
   }> {

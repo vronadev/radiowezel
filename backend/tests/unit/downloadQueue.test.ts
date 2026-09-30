@@ -25,6 +25,9 @@ function mockResponse() {
       this.body = payload;
       return this;
     },
+    setHeader() {
+      return this;
+    },
   };
   return response as typeof response & Response;
 }
