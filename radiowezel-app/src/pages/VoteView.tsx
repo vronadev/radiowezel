@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import type { Song, SongRequestAggregate } from "@/types/api";
 import { RequestedSongsGrid } from "@/components/RequestedSongsGrid";
 import { useSongPreview } from "@/hooks/useSongPreview";
+import { extractYoutubeVideoId } from "@/lib/youtube";
 import { useRealtime } from "@/hooks/useRealtime";
 
 const LIBRARY_PAGE = 25;
@@ -28,6 +29,8 @@ export function VoteView() {
   const [bumpingId, setBumpingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { previewSongId, youtubeEmbedUrl, playFilePreview, playYoutubePreview } = useSongPreview();
+  const featuredLoadedRef = useRef(LIBRARY_PAGE);
+  const searchLoadedRef = useRef(LIBRARY_PAGE);
 
   const loadRequests = useCallback(() => {
     return api
@@ -36,13 +39,17 @@ export function VoteView() {
       .catch(() => setMostRequested([]));
   }, []);
 
-  const loadFeatured = useCallback((offset = 0, append = false) => {
+  const loadFeatured = useCallback((offset = 0, append = false, limit = LIBRARY_PAGE) => {
     return api
-      .getLibrary(undefined, "votes", LIBRARY_PAGE, offset)
+      .getLibrary(undefined, "votes", limit, offset)
       .then((r) => {
         const songs = Array.isArray(r?.songs) ? (r.songs as Song[]) : [];
-        setFeaturedHasMore(songs.length === LIBRARY_PAGE);
-        setFeaturedSongs((prev) => (append ? [...prev, ...songs.filter((song) => !prev.some((p) => p.id === song.id))] : songs));
+        setFeaturedHasMore(songs.length === limit);
+        setFeaturedSongs((prev) => {
+          const next = append ? [...prev, ...songs.filter((song) => !prev.some((p) => p.id === song.id))] : songs;
+          featuredLoadedRef.current = next.length;
+          return next;
+        });
       })
       .catch(() => {
         if (!append) {
@@ -52,9 +59,10 @@ export function VoteView() {
       });
   }, []);
 
-  const executeSearch = useCallback(async (query: string, offset = 0, append = false) => {
+  const executeSearch = useCallback(async (query: string, offset = 0, append = false, limit = LIBRARY_PAGE) => {
     const q = query.trim();
     if (!q) {
+      searchLoadedRef.current = LIBRARY_PAGE;
       setLibrary([]);
       setLibraryHasMore(false);
       setSearching(false);
@@ -62,12 +70,18 @@ export function VoteView() {
     }
     setSearching(true);
     try {
-      const r = await api.getLibrary(q, undefined, LIBRARY_PAGE, offset);
+      const r = await api.getLibrary(q, "votes", limit, offset);
       const songs = Array.isArray(r.songs) ? (r.songs as Song[]) : [];
-      setLibraryHasMore(songs.length === LIBRARY_PAGE);
-      setLibrary((prev) => (append ? [...prev, ...songs.filter((song) => !prev.some((p) => p.id === song.id))] : songs));
+      setLibraryHasMore(songs.length === limit);
+      setLibrary((prev) => {
+        const next = append ? [...prev, ...songs.filter((song) => !prev.some((p) => p.id === song.id))] : songs;
+        searchLoadedRef.current = next.length;
+        return next;
+      });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
       if (!append) {
         setLibrary([]);
       }
@@ -78,12 +92,13 @@ export function VoteView() {
   }, [toast]);
 
   const refreshVoteLists = useCallback(() => {
-    void loadFeatured();
+    void loadFeatured(0, false, Math.max(LIBRARY_PAGE, featuredLoadedRef.current));
     void loadRequests();
     const q = searchQuery.trim();
     if (q) {
-      void executeSearch(q);
+      void executeSearch(q, 0, false, Math.max(LIBRARY_PAGE, searchLoadedRef.current));
     } else {
+      searchLoadedRef.current = LIBRARY_PAGE;
       setLibrary([]);
     }
   }, [executeSearch, loadFeatured, loadRequests, searchQuery]);
@@ -121,7 +136,15 @@ export function VoteView() {
   const voteByUrl = async () => {
     const url = ytUrl.trim();
     if (!url) {
-      toast({ title: "Wklej link YouTube", variant: "destructive" });
+      toast({ title: "Wklej link do utworu", variant: "destructive" });
+      return;
+    }
+    if (!extractYoutubeVideoId(url)) {
+      toast({
+        title: "Nieprawidłowy link",
+        description: "Link musi prowadzić do utworu na YouTube albo YouTube Music.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
@@ -134,7 +157,9 @@ export function VoteView() {
       setYtUrl("");
       loadRequests();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -146,16 +171,11 @@ export function VoteView() {
       await api.vote({ songId });
       const voted = displaySongs.find((song) => song.id === songId);
       toast({ title: "Oddano głos", description: voted?.title ? `Na „${voted.title}”` : undefined });
-      api
-        .getLibrary(undefined, "votes", LIBRARY_PAGE, 0)
-        .then((r) => {
-          const songs = Array.isArray(r.songs) ? (r.songs as Song[]) : [];
-          setFeaturedHasMore(songs.length === LIBRARY_PAGE);
-          setFeaturedSongs(songs);
-        })
-        .catch(() => setFeaturedSongs([]));
+      void loadFeatured(0, false, Math.max(LIBRARY_PAGE, featuredLoadedRef.current));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +190,9 @@ export function VoteView() {
       });
       loadRequests();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setBumpingId(null);
     }
@@ -195,20 +217,23 @@ export function VoteView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Nowa piosenka (link YouTube)</CardTitle>
+          <CardTitle>Nowa piosenka</CardTitle>
           <CardDescription>
-            Wklej link do piosenki z YouTube. Jeśli piosenka jest już w bibliotece, zostanie oddany głos.
+            Wklej link do piosenki z YouTube albo YouTube Music. Jeśli piosenka jest już w bibliotece, zostanie oddany głos.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1 min-w-0 space-y-2">
-            <Label htmlFor="yt-url">Link YouTube</Label>
+            <Label htmlFor="yt-url">Link do utworu</Label>
             <Input
               id="yt-url"
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://music.youtube.com/watch?v=... lub YouTube"
               value={ytUrl}
               onChange={(e) => setYtUrl(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Obsługiwane źródła: YouTube i YouTube Music.
+            </p>
           </div>
           <div className="flex items-end">
             <Button onClick={voteByUrl} disabled={submitting}>
@@ -250,7 +275,7 @@ export function VoteView() {
         <CardHeader>
           <CardTitle>Biblioteka</CardTitle>
           <CardDescription>
-            Wyszukaj piosenkę lub przeglądaj karty. Najpierw utwory z głosami, potem reszta z obowiązującej playlisty, na końcu te, na które teraz nie można głosować. Kliknij okładkę, by odtworzyć 30-sekundową zajawkę.
+            Wyszukaj piosenkę lub przeglądaj karty. Najpierw utwory z głosami, potem pozostałe z obowiązującej playlisty według łącznej liczby głosów, na końcu te, na które teraz nie można głosować. Kliknij okładkę, by odtworzyć 30-sekundową zajawkę.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -280,6 +305,7 @@ export function VoteView() {
               {displaySongs.map((song) => {
                 const title = song.title ?? "";
                 const author = song.author ?? "";
+                const totalVotes = typeof song.totalVotes === "number" ? song.totalVotes : 0;
                 return (
                   <Card key={song.id} className="overflow-hidden">
                     <button
@@ -311,6 +337,9 @@ export function VoteView() {
                     <CardContent className="p-3">
                       <p className="font-medium text-sm truncate" title={title}>{title}</p>
                       <p className="text-xs text-muted-foreground truncate" title={author}>{author}</p>
+                      <p className="text-xs text-muted-foreground" title="Łączna liczba oddanych głosów">
+                        łącznie {totalVotes}
+                      </p>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <ThumbsUp className="h-3 w-3" />

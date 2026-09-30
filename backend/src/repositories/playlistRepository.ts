@@ -78,6 +78,9 @@ export class PlaylistRepository {
     this.database.prepare("DELETE FROM playlists WHERE id = ?").run(id);
   }
 
+  /**
+   * @deprecated Single-playlist wrapper. Use getSongIdsInPlaylists.
+   */
   getSongIdsInPlaylist(playlistId: string): string[] {
     return this.getSongIdsInPlaylists([playlistId]);
   }

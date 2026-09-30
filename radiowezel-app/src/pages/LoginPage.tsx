@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { ALLOWED_EMAIL_DOMAIN } from "@/types/api";
 
 const PASSWORD_LOGIN_KEY = "showPasswordLogin";
@@ -49,7 +49,9 @@ export function LoginPage() {
       toast({ title: "Zalogowano" });
       navigate(redirect, { replace: true });
     } catch (err) {
-      toast({ title: "Błąd logowania", description: (err as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(err)) {
+        toast({ title: "Błąd logowania", description: (err as Error).message, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
@@ -85,7 +87,9 @@ export function LoginPage() {
       setSent(true);
       toast({ title: "Wysłano link", description: "Sprawdź skrzynkę i kliknij link do logowania." });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }

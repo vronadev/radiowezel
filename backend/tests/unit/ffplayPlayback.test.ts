@@ -18,6 +18,8 @@ describe("ffplay live fade-out plan", () => {
       "-loglevel",
       "quiet",
       "-hide_banner",
+      "-volume",
+      "100",
       "/tmp/song.mp3",
     ]);
   });
@@ -42,6 +44,8 @@ describe("ffplay live fade-out plan", () => {
       "-loglevel",
       "quiet",
       "-hide_banner",
+      "-volume",
+      "100",
       "-ss",
       "10",
       "-t",
@@ -62,5 +66,18 @@ describe("ffplay live fade-out plan", () => {
     expect(plan.limitSeconds).toBe(3);
     expect(plan.fadeOut).toEqual({ startSeconds: 0, durationSeconds: 3 });
     expect(buildFfplayArgs(plan)).toContain("afade=t=out:st=0:d=3");
+  });
+
+  it("sets ffplay volume from the active slot and clamps it to 0-100", () => {
+    const plan = planFfplayPlayback({
+      filePath: "/tmp/song.mp3",
+      songDurationSeconds: 30,
+      remainingSlotSeconds: null,
+      fadeOutSecondsBeforeEnd: 0,
+    });
+    expect(buildFfplayArgs(plan, 40)).toContain("-volume");
+    expect(buildFfplayArgs(plan, 40)).toContain("40");
+    expect(buildFfplayArgs(plan, 140)).toContain("100");
+    expect(buildFfplayArgs(plan, -5)).toContain("0");
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +86,9 @@ export function AdminPlaylistView() {
       toast({ title: "Dodano do playlisty" });
       fetchPlaylist();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setAddingSongId(null);
     }
@@ -100,7 +102,9 @@ export function AdminPlaylistView() {
       toast({ title: "Usunięto z playlisty" });
       fetchPlaylist();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setRemovingSongId(null);
     }
@@ -116,7 +120,9 @@ export function AdminPlaylistView() {
       toast({ title: playlist.excludeFromRandom ? "Uwzględniono w losowaniu" : "Wykluczono z losowania" });
       setPlaylist((p) => (p ? { ...p, excludeFromRandom: !p.excludeFromRandom } : p));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setPatchingExclude(null);
     }
@@ -130,7 +136,9 @@ export function AdminPlaylistView() {
       toast({ title: playlist.excludeFromVoting ? "Uwzględniono w głosowaniu" : "Wykluczono z głosowania (gdy nie obowiązuje)" });
       setPlaylist((p) => (p ? { ...p, excludeFromVoting: !p.excludeFromVoting } : p));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setPatchingExclude(null);
     }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseVolumePercentage } from "../../src/config/slotVolume.js";
 import { SlotSchedule } from "../../src/services/slotSchedule.js";
 import { FixedClock, atLocalTime } from "../helpers/testDoubles.js";
 
@@ -58,6 +59,37 @@ describe("SlotSchedule", () => {
     expect(afterMusic.getSlotEndSeconds()).toBe(8 * 3600 + 49 * 60 + 30);
     const stillPlaying = new SlotSchedule(slots, new FixedClock(atLocalTime(8, 49, 0)), 30);
     expect(stillPlaying.isMusicWindow()).toBe(true);
+  });
+
+  it("keeps only integer volumes from 0 through 100", () => {
+    expect(parseVolumePercentage(0)).toBe(0);
+    expect(parseVolumePercentage(100)).toBe(100);
+    expect(parseVolumePercentage("40")).toBe(40);
+    expect(parseVolumePercentage(40.5)).toBeUndefined();
+    expect(parseVolumePercentage(101)).toBeUndefined();
+    expect(parseVolumePercentage(-1)).toBeUndefined();
+    expect(parseVolumePercentage(undefined)).toBeUndefined();
+  });
+
+  it("uses the active slot volume and falls back to 100% when it is missing or invalid", () => {
+    const quiet = new SlotSchedule(
+      [
+        { start: "08:45", end: "08:50", volumePercentage: 35 },
+        { start: "11:15", end: "11:30" },
+      ],
+      new FixedClock(atLocalTime(8, 47)),
+    );
+    expect(quiet.playbackVolumePercentage()).toBe(35);
+    const full = new SlotSchedule(
+      [
+        { start: "08:45", end: "08:50", volumePercentage: 35 },
+        { start: "11:15", end: "11:30" },
+      ],
+      new FixedClock(atLocalTime(11, 20)),
+    );
+    expect(full.playbackVolumePercentage()).toBe(100);
+    const outside = new SlotSchedule([{ start: "08:45", end: "08:50", volumePercentage: 35 }], new FixedClock(atLocalTime(7, 0)));
+    expect(outside.playbackVolumePercentage()).toBe(100);
   });
 
   it("starts music bellStartOffsetSeconds after the calendar slot start", () => {

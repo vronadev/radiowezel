@@ -16,6 +16,10 @@ export class ScheduleService {
     return cyclic.length > 0 ? cyclic : null;
   }
 
+  /**
+   * @deprecated Returns only the first scheduled playlist for the day.
+   * Use resolveScheduledPlaylistIds.
+   */
   resolveScheduledPlaylistId(at: Date = new Date()): string | null {
     return this.resolveScheduledPlaylistIds(at)?.[0] ?? null;
   }

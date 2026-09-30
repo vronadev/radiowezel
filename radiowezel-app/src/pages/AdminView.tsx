@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,7 +105,7 @@ export function AdminView() {
     api
       .getPendingSongs()
       .then((r) => setSongs((r.songs as Song[])))
-      .catch((e) => toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" }))
+      .catch((e) => { if (!isApiTimeoutError(e)) toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" }); })
       .finally(() => setLoading(false));
     api
       .getSongRequests()
@@ -188,7 +188,9 @@ export function AdminView() {
       setQueueData(queue as typeof queueData);
       toast({ title: "Kolejka odświeżona" });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setRebuildingQueue(false);
     }
@@ -200,7 +202,9 @@ export function AdminView() {
       setPlayerPaused(s.paused);
       toast({ title: s.paused ? "Odtwarzanie wstrzymane" : "Odtwarzanie wznawiane" });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     }
   };
 
@@ -210,7 +214,9 @@ export function AdminView() {
       await api.patchSettings({ voteQuotaPerUser: quotaPerUser, voteQuotaPeriodHours: quotaPeriodHours });
       toast({ title: "Zapisano ustawienia" });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSavingQuota(false);
     }
@@ -224,7 +230,9 @@ export function AdminView() {
       fetchPending();
       fetchDownloadQueue();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setVerifyingId(null);
     }
@@ -250,7 +258,9 @@ export function AdminView() {
       setPlaylistUrl("");
       fetchPlaylists();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setImportingPlaylist(false);
     }
@@ -266,7 +276,9 @@ export function AdminView() {
       fetchDownloadQueue();
       fetchPlaylists();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSyncingPlaylistId(null);
     }
@@ -279,7 +291,9 @@ export function AdminView() {
       toast({ title: "Playlista usunięta" });
       fetchPlaylists();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     }
   };
 
@@ -291,7 +305,9 @@ export function AdminView() {
       toast({ title: next ? "Wykluczono z losowania" : "Uwzględniono w losowaniu" });
       setPlaylists((prev) => prev.map((p) => (p.id === pl.id ? { ...p, excludeFromRandom: next } : p)));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setPatchingPlaylistId(null);
     }
@@ -305,7 +321,9 @@ export function AdminView() {
       toast({ title: next ? "Wykluczono z głosowania (gdy nie obowiązuje)" : "Uwzględniono w głosowaniu" });
       setPlaylists((prev) => prev.map((p) => (p.id === pl.id ? { ...p, excludeFromVoting: next } : p)));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setPatchingPlaylistId(null);
     }
@@ -319,7 +337,9 @@ export function AdminView() {
       toast({ title: "Zgłoszenie usunięte" });
       fetchPending();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setDeletingSongId(null);
     }
@@ -331,7 +351,9 @@ export function AdminView() {
       toast({ title: "Usunięto z kolejki" });
       api.getQueue().then((d) => setQueueData(d as typeof queueData)).catch(() => {});
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     }
   };
 
@@ -343,7 +365,9 @@ export function AdminView() {
       toast({ title: "Piosenka usunięta z dysku i bazy" });
       setLibrarySongs((prev) => prev.filter((s) => s.id !== songId));
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setDeletingLibrarySongId(null);
     }
@@ -355,7 +379,9 @@ export function AdminView() {
       await api.addSongToPlaylist(playlistId, songId);
       toast({ title: "Piosenka dodana do playlisty" });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setAddingToPlaylist(null);
     }
@@ -374,7 +400,9 @@ export function AdminView() {
       });
       toast({ title: "Zapisano harmonogram playlist" });
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setScheduleSaving(false);
     }

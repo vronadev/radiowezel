@@ -25,9 +25,30 @@ interface YtDlpWrapStatic {
 const importedWrap = ytDlpWrapModule as unknown as { default?: YtDlpWrapStatic } & YtDlpWrapStatic;
 const YTDlpWrap = importedWrap.default ?? importedWrap;
 
+const VIDEO_ID = /^[a-zA-Z0-9_-]{11}$/;
+
+/** Watch links from youtube.com, music.youtube.com, m.youtube.com, and youtu.be. */
 export function extractVideoId(url: string): string | null {
-  const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+  if (host !== "youtube.com" && host !== "music.youtube.com" && host !== "m.youtube.com" && host !== "youtu.be" && host !== "youtube-nocookie.com") {
+    return null;
+  }
+  if (host === "youtu.be") {
+    const id = parsed.pathname.split("/").filter(Boolean)[0] ?? "";
+    return VIDEO_ID.test(id) ? id : null;
+  }
+  const fromQuery = parsed.searchParams.get("v");
+  if (fromQuery && VIDEO_ID.test(fromQuery)) {
+    return fromQuery;
+  }
+  const fromPath = parsed.pathname.match(/\/(?:shorts|embed|live)\/([a-zA-Z0-9_-]{11})/);
+  return fromPath?.[1] ?? null;
 }
 
 function formatYtdlpFailure(code: number, stderr: string, stdout: string): string {
