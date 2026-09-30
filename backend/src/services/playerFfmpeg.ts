@@ -345,7 +345,7 @@ export class PlayerFFMPEG implements IAudioPlayer {
       remainingSlotSeconds: remainingSlot,
       fadeOutSecondsBeforeEnd: this.fadeOutSecondsBeforeEnd,
     });
-    const outcome = await this.playMp3(buildFfplayArgs(plan));
+    const outcome = await this.playMp3(buildFfplayArgs(plan, this.slotSchedule.playbackVolumePercentage()));
     if (outcome === "completed") {
       this.notifySongConsumed();
       this.clearNowPlaying();

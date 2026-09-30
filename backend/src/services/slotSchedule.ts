@@ -1,5 +1,6 @@
 import type { BreakWindow, ScheduleContext, ScheduleSlot } from "../@types/models.js";
 import { DEFAULT_ACTIVE_PLAYBACK_DAYS } from "../config/activePlaybackDays.js";
+import { resolveVolumePercentage } from "../config/slotVolume.js";
 import type { IClock } from "../interfaces/IClock.js";
 import { SystemClock } from "./systemClock.js";
 
@@ -81,6 +82,11 @@ export class SlotSchedule {
       return false;
     }
     return atSeconds >= this.musicStartSeconds(slot) && atSeconds < this.musicEndSeconds(slot);
+  }
+
+  /** Loudness for the slot that contains `atSeconds`. Unconfigured slots play at 100%. */
+  playbackVolumePercentage(atSeconds = this.nowSeconds()): number {
+    return resolveVolumePercentage(this.activeSlot(atSeconds)?.volumePercentage);
   }
 
   getSlotEndSeconds(atSeconds = this.nowSeconds()): number | null {
@@ -217,15 +223,23 @@ export class SlotSchedule {
     return this.dateFromSeconds(this.musicStartSeconds(chosen ?? { start: 0, end: 0 }), day);
   }
 
-  private findSlot(atSeconds: number): { start: number; end: number } | null {
+  private activeSlot(atSeconds: number): ScheduleSlot | null {
     for (const slot of this.slots) {
       const start = this.parseTimeToSeconds(slot.start);
       const end = this.parseTimeToSeconds(slot.end);
       if (atSeconds >= start && atSeconds < end) {
-        return { start, end };
+        return slot;
       }
     }
     return null;
+  }
+
+  private findSlot(atSeconds: number): { start: number; end: number } | null {
+    const slot = this.activeSlot(atSeconds);
+    if (!slot) {
+      return null;
+    }
+    return { start: this.parseTimeToSeconds(slot.start), end: this.parseTimeToSeconds(slot.end) };
   }
 
   private musicStartForBreak(breakWindow: BreakWindow): number {

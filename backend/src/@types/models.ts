@@ -118,6 +118,8 @@ export interface QueueOverride {
 export interface ScheduleSlot {
   start: string;
   end: string;
+  /** Playback loudness while this slot is active. Omitted means 100%. */
+  volumePercentage?: number;
 }
 
 export interface BreakWindow {
