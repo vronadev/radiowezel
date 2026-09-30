@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import type { Song, SongRequestAggregate } from "@/types/api";
 import { RequestedSongsGrid } from "@/components/RequestedSongsGrid";
 import { useSongPreview } from "@/hooks/useSongPreview";
+import { extractYoutubeVideoId } from "@/lib/youtube";
 import { useRealtime } from "@/hooks/useRealtime";
 
 const LIBRARY_PAGE = 25;
@@ -135,7 +136,15 @@ export function VoteView() {
   const voteByUrl = async () => {
     const url = ytUrl.trim();
     if (!url) {
-      toast({ title: "Wklej link YouTube", variant: "destructive" });
+      toast({ title: "Wklej link do utworu", variant: "destructive" });
+      return;
+    }
+    if (!extractYoutubeVideoId(url)) {
+      toast({
+        title: "Nieprawidłowy link",
+        description: "Link musi prowadzić do utworu na YouTube albo YouTube Music.",
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
@@ -208,20 +217,23 @@ export function VoteView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Nowa piosenka (link YouTube)</CardTitle>
+          <CardTitle>Nowa piosenka</CardTitle>
           <CardDescription>
-            Wklej link do piosenki z YouTube. Jeśli piosenka jest już w bibliotece, zostanie oddany głos.
+            Wklej link do piosenki z YouTube albo YouTube Music. Jeśli piosenka jest już w bibliotece, zostanie oddany głos.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1 min-w-0 space-y-2">
-            <Label htmlFor="yt-url">Link YouTube</Label>
+            <Label htmlFor="yt-url">Link do utworu</Label>
             <Input
               id="yt-url"
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://music.youtube.com/watch?v=... lub YouTube"
               value={ytUrl}
               onChange={(e) => setYtUrl(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Obsługiwane źródła: YouTube i YouTube Music.
+            </p>
           </div>
           <div className="flex items-end">
             <Button onClick={voteByUrl} disabled={submitting}>

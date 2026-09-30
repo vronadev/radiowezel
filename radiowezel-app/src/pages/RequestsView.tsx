@@ -78,7 +78,7 @@ export function RequestsView() {
             Najczęściej zgłaszane
           </CardTitle>
           <CardDescription>
-            Przeglądaj oczekujące zgłoszenia, odsłuchaj zajawkę z okładki i podbij utwór.
+            Zgłoszenia z YouTube i YouTube Music. Odsłuchaj zajawkę z okładki i podbij utwór.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

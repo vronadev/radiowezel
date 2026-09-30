@@ -47,15 +47,17 @@ function Layout({ children }: { children: React.ReactNode }) {
   const tab =
     location.pathname === "/vote"
       ? "vote"
-      : location.pathname.startsWith("/admin")
-        ? "admin"
-        : location.pathname.startsWith("/playlist")
-          ? "queue"
-          : location.pathname === "/ranking"
-            ? "ranking"
-            : location.pathname === "/history"
-              ? "history"
-              : "queue";
+      : location.pathname === "/requests"
+        ? "requests"
+        : location.pathname.startsWith("/admin")
+          ? "admin"
+          : location.pathname.startsWith("/playlist")
+            ? "queue"
+            : location.pathname === "/ranking"
+              ? "ranking"
+              : location.pathname === "/history"
+                ? "history"
+                : "queue";
 
   const listedPlaylists =
     effectivePlaylist?.playlists?.filter((playlist) => playlist.id && playlist.name) ??
@@ -96,6 +98,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             </TabsTrigger>
             <TabsTrigger value="vote" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/vote">Głosowanie</Link>
+            </TabsTrigger>
+            <TabsTrigger value="requests" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
+              <Link to="/requests">Zgłoszenia</Link>
             </TabsTrigger>
             <TabsTrigger value="ranking" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/ranking">Ranking</Link>

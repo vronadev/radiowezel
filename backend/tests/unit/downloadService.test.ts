@@ -26,7 +26,9 @@ describe("DownloadService", () => {
   it("extracts YouTube video ids from watch and short URLs", () => {
     expect(extractVideoId("https://www.youtube.com/watch?v=dQw4w9wgGcQ")).toBe("dQw4w9wgGcQ");
     expect(extractVideoId("https://youtu.be/dQw4w9wgGcQ")).toBe("dQw4w9wgGcQ");
-    expect(extractVideoId("https://example.com")).toBeNull();
+    expect(extractVideoId("https://music.youtube.com/watch?v=dQw4w9wgGcQ&si=share")).toBe("dQw4w9wgGcQ");
+    expect(extractVideoId("https://music.youtube.com/playlist?list=PLtest")).toBeNull();
+    expect(extractVideoId("https://example.com/watch?v=dQw4w9wgGcQ")).toBeNull();
   });
 
   it("completes an MP3 download lifecycle from mocked yt-dlp output", async () => {
