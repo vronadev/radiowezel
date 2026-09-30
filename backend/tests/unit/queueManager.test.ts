@@ -541,6 +541,50 @@ describe("QueueManager", () => {
     midday.alignQueueToUpcomingDay();
     expect(fileStore.writes).toBe(before);
   });
+
+  it("after Friday's last slot builds Monday's playlist and skips the weekend", () => {
+    const { layer, fileStore } = setup();
+    const ids = addVerifiedSongs(layer, fileStore, 4, "week", 180);
+    const mondaySong = ids[0]!;
+    const weekendOnly = ids[1]!;
+    const outside = ids[2]!;
+    const mondayList = layer.playlistService.create("Monday", null);
+    const saturdayList = layer.playlistService.create("Saturday", null);
+    layer.playlistService.addSong(mondayList, mondaySong, "manual");
+    layer.playlistService.addSong(mondayList, ids[3]!, "manual");
+    layer.playlistService.addSong(saturdayList, weekendOnly, "manual");
+    const friday = atLocalTime(23, 10);
+    friday.setDate(friday.getDate() + 4);
+    const monday = new Date(friday.getTime());
+    monday.setDate(monday.getDate() + 3);
+    layer.scheduleService.replaceCyclic([
+      { playlistId: mondayList, dayOfWeek: localWeekday(monday) },
+      { playlistId: saturdayList, dayOfWeek: 6 },
+    ]);
+    const userId = layer.userService.create("user@zsi.kielce.pl", "hash", false);
+    layer.voteService.addVote(userId, outside);
+    layer.voteService.addVote(userId, outside);
+    layer.voteService.addVote(userId, mondaySong);
+
+    const queueManager = createQueueManager(layer, fileStore, {
+      clock: new FixedClock(friday),
+      slots: [{ start: "07:30", end: "08:00" }],
+      randomMinRemaining: 1,
+      randomFillSize: 1,
+    });
+    const payload = queueManager.getQueuePayload(queueManager.refreshQueueFile().nowPlaying);
+    const mondayItem = payload.queue.find((item) => item.songId === mondaySong);
+    const deferred = payload.queue.find((item) => item.songId === outside);
+    const tuesday = new Date(monday.getTime());
+    tuesday.setDate(tuesday.getDate() + 1);
+
+    expect(payload.queue[0]?.songId).toBe(mondaySong);
+    expect(localTime(mondayItem?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 30, seconds: 0 });
+    expect(new Date(mondayItem!.estimatedPlayAt!).getDate()).toBe(monday.getDate());
+    expect(payload.queue.filter((item) => item.votes === 0).map((item) => item.songId)).toEqual([ids[3]]);
+    expect(localTime(deferred?.estimatedPlayAt)).toEqual({ hours: 7, minutes: 30, seconds: 0 });
+    expect(new Date(deferred!.estimatedPlayAt!).getDate()).toBe(tuesday.getDate());
+  });
 });
 
 function localTime(iso: string | null | undefined): { hours: number; minutes: number; seconds: number } {

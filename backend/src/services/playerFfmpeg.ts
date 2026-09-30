@@ -137,7 +137,7 @@ export class PlayerFFMPEG implements IAudioPlayer {
   }
 
   tick(): void {
-    const inMusicWindow = this.slotSchedule.isMusicWindow();
+    const inMusicWindow = this.slotSchedule.isPlaybackDay() && this.slotSchedule.isMusicWindow();
     const endOfBreak = this.slotSchedule.getSlotEndSeconds();
     const now = this.slotSchedule.nowSeconds();
     const inFadeZone = endOfBreak != null && endOfBreak - now <= this.fadeOutSecondsBeforeEnd;

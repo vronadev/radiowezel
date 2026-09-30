@@ -66,6 +66,7 @@ export function AdminView() {
   const [importingPlaylist, setImportingPlaylist] = useState(false);
   const [activePlaylistId, setActivePlaylistId] = useState<string>("");
   const [cyclicSchedule, setCyclicSchedule] = useState<Record<number, string[]>>({});
+  const [activeDays, setActiveDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [oneOffList, setOneOffList] = useState<{ id: string; date: string; playlistId: string }[]>([]);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [quotaPerUser, setQuotaPerUser] = useState(5);
@@ -175,6 +176,7 @@ export function AdminView() {
       });
       setCyclicSchedule(cyclic);
       setOneOffList(s.oneOff.map((o) => ({ id: o.id, date: o.date, playlistId: o.playlistId })));
+      if (Array.isArray(s.activeDays)) setActiveDays(s.activeDays);
     }).catch(() => {});
   }, []);
 
@@ -368,6 +370,7 @@ export function AdminView() {
           playlistIds.filter(Boolean).map((playlistId) => ({ playlistId, dayOfWeek: parseInt(day, 10) })),
         ),
         oneOff: oneOffList.filter((o) => o.date && o.playlistId).map((o) => ({ date: o.date, playlistId: o.playlistId })),
+        activeDays,
       });
       toast({ title: "Zapisano harmonogram playlist" });
     } catch (e) {
@@ -866,9 +869,31 @@ export function AdminView() {
           <CardDescription>
             Domyślna playlista ogranicza, co może być odtwarzane. Harmonogram cykliczny i jednorazowe daty nadpisują domyślną.
             Na jeden dzień można przypisać kilka playlist — grają piosenki z każdej z nich.
+            Dni bez zaznaczenia są zamknięte: nic wtedy nie gra, a kolejka przechodzi na następny otwarty dzień.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Dni odtwarzania</Label>
+            <div className="flex flex-wrap gap-3">
+              {DAY_NAMES.map((name, dayOfWeek) => (
+                <label key={dayOfWeek} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={activeDays.includes(dayOfWeek)}
+                    onChange={() =>
+                      setActiveDays((prev) =>
+                        prev.includes(dayOfWeek)
+                          ? prev.filter((day) => day !== dayOfWeek)
+                          : [...prev, dayOfWeek].sort((left, right) => left - right),
+                      )
+                    }
+                  />
+                  {name}
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Domyślna playlista (ograniczenie odtwarzania)</Label>
             <select

@@ -1,11 +1,16 @@
 import type { Request, Response } from "express";
 import type { AppConfig } from "../@types/models.js";
+import { parseActivePlaybackDays } from "../config/activePlaybackDays.js";
 import type { QueueManager } from "../services/queueManager.js";
 import type { ScheduleService } from "../services/scheduleService.js";
 import type { SettingsService } from "../services/settingsService.js";
+import type { SlotSchedule } from "../services/slotSchedule.js";
 
 export class ScheduleController {
-  constructor(private readonly config: AppConfig) {}
+  constructor(
+    private readonly config: AppConfig,
+    private readonly slotSchedule: SlotSchedule,
+  ) {}
 
   getBreakSchedule = (_request: Request, response: Response): void => {
     const schedule = this.config.schedule;
@@ -14,6 +19,7 @@ export class ScheduleController {
       bellStartOffsetSeconds: schedule.bellStartOffsetSeconds ?? 30,
       bellEndOffsetSeconds: schedule.bellEndOffsetSeconds ?? 30,
       fadeOutSecondsBeforeEnd: schedule.fadeOutSecondsBeforeEnd ?? 5,
+      activeDays: this.slotSchedule.getActiveDays(),
     });
   };
 }
@@ -23,6 +29,8 @@ export class PlaylistScheduleController {
     private readonly settingsService: SettingsService,
     private readonly scheduleService: ScheduleService,
     private readonly queueManager: QueueManager,
+    private readonly slotSchedule: SlotSchedule,
+    private readonly defaultActiveDays: number[],
   ) {}
 
   get = (_request: Request, response: Response): void => {
@@ -30,11 +38,17 @@ export class PlaylistScheduleController {
       activePlaylistId: this.settingsService.getActivePlaylistId(),
       cyclic: this.scheduleService.listCyclic(),
       oneOff: this.scheduleService.listOneOff(),
+      activeDays: this.settingsService.getActivePlaybackDays(this.defaultActiveDays),
     });
   };
 
   patch = (request: Request, response: Response): void => {
-    const { activePlaylistId, cyclic, oneOff } = request.body || {};
+    const { activePlaylistId, cyclic, oneOff, activeDays } = request.body || {};
+    if (Array.isArray(activeDays)) {
+      const days = parseActivePlaybackDays(activeDays) ?? [];
+      this.settingsService.setActivePlaybackDays(days);
+      this.slotSchedule.setActiveDays(days);
+    }
     if (typeof activePlaylistId === "string" || activePlaylistId === null) {
       this.settingsService.setActivePlaylistId(activePlaylistId);
     }
@@ -59,6 +73,7 @@ export class PlaylistScheduleController {
       activePlaylistId: this.settingsService.getActivePlaylistId(),
       cyclic: this.scheduleService.listCyclic(),
       oneOff: this.scheduleService.listOneOff(),
+      activeDays: this.settingsService.getActivePlaybackDays(this.defaultActiveDays),
     });
   };
 }

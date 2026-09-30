@@ -1,4 +1,5 @@
 import type { VoteQuota } from "../@types/models.js";
+import { parseActivePlaybackDays } from "../config/activePlaybackDays.js";
 import { SettingsKeys } from "../constants/settingsKeys.js";
 import type { SettingsRepository } from "../repositories/settingsRepository.js";
 
@@ -33,5 +34,18 @@ export class SettingsService {
 
   setActivePlaylistId(playlistId: string | null): void {
     this.setSetting(SettingsKeys.activePlaylistId, playlistId ?? "");
+  }
+
+  getActivePlaybackDays(fallback: number[]): number[] {
+    const raw = this.settingsRepository.get(SettingsKeys.activePlaybackDays);
+    if (raw == null || raw.trim() === "") {
+      return [...fallback];
+    }
+    return parseActivePlaybackDays(raw) ?? [...fallback];
+  }
+
+  setActivePlaybackDays(days: number[]): void {
+    const parsed = parseActivePlaybackDays(days) ?? [];
+    this.setSetting(SettingsKeys.activePlaybackDays, parsed.join(","));
   }
 }

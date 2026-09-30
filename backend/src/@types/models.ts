@@ -188,6 +188,7 @@ export interface AppConfig {
     bellStartOffsetSeconds: number;
     bellEndOffsetSeconds: number;
     fadeOutSecondsBeforeEnd: number;
+    activeDays: number[];
   };
   voteTieBreakMode: VoteTieBreakMode;
   dataDir: string;
