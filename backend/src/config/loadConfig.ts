@@ -13,6 +13,8 @@ import {
   DEFAULT_QUEUE_RANDOM_MIN_REMAINING,
 } from "../constants/queueFill.js";
 import { parseFrontendOrigins } from "../http/frontendOrigins.js";
+import { DEFAULT_ACTIVE_PLAYBACK_DAYS, parseActivePlaybackDays } from "./activePlaybackDays.js";
+import { parseVolumePercentage } from "./slotVolume.js";
 import { resolveVoteTieBreakMode } from "./voteTieBreak.js";
 
 dotenv.config();
@@ -26,10 +28,11 @@ interface RawConfigFile {
   adminPassword?: string;
   jwtSecret?: string;
   schedule?: {
-    slots?: Array<{ start: string; end: string }>;
+    slots?: Array<{ start: string; end: string; volumePercentage?: number | string }>;
     bellStartOffsetSeconds?: number;
     bellEndOffsetSeconds?: number;
     fadeOutSecondsBeforeEnd?: number;
+    activeDays?: Array<number | string>;
   };
   voteTieBreakMode?: string;
   dataDir?: string;
@@ -96,6 +99,20 @@ function resolvePath(maybeRelative: string, fallback: string): string {
   return path.isAbsolute(value) ? value : path.resolve(backendRoot, value);
 }
 
+function parseScheduleSlots(
+  slots: Array<{ start: string; end: string; volumePercentage?: number | string }> | undefined,
+): AppConfig["schedule"]["slots"] {
+  if (!Array.isArray(slots)) {
+    return [];
+  }
+  return slots.map((slot) => {
+    const volumePercentage = parseVolumePercentage(slot.volumePercentage);
+    return volumePercentage == null
+      ? { start: slot.start, end: slot.end }
+      : { start: slot.start, end: slot.end, volumePercentage };
+  });
+}
+
 function parsePositiveInt(value: string | number | undefined, fallback: number): number {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -128,7 +145,7 @@ export function loadConfig(): AppConfig {
     adminPassword: file.adminPassword,
     jwtSecret,
     schedule: {
-      slots: file.schedule?.slots ?? [],
+      slots: parseScheduleSlots(file.schedule?.slots),
       bellStartOffsetSeconds: parseNonNegativeInt(
         process.env.BELL_START_OFFSET_SECONDS ?? file.schedule?.bellStartOffsetSeconds,
         30,
@@ -141,6 +158,9 @@ export function loadConfig(): AppConfig {
         process.env.FADE_OUT_SECONDS_BEFORE_END ?? file.schedule?.fadeOutSecondsBeforeEnd,
         5,
       ),
+      activeDays:
+        parseActivePlaybackDays(process.env.SCHEDULE_ACTIVE_DAYS ?? file.schedule?.activeDays) ??
+        [...DEFAULT_ACTIVE_PLAYBACK_DAYS],
     },
     voteTieBreakMode: resolveVoteTieBreakMode(process.env.VOTE_TIE_BREAK_MODE, file.voteTieBreakMode),
     dataDir,

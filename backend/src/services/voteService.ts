@@ -62,6 +62,10 @@ export class VoteService {
     this.voteRepository.deleteBySongId(songId);
   }
 
+  /**
+   * @deprecated Writes a queue vote count without recording a vote.
+   * Use addVote. Playback clears current votes through resetQueueVotesForSong.
+   */
   setQueueOverride(songId: string, votes: number): void {
     this.voteRepository.setOverride(songId, votes);
   }

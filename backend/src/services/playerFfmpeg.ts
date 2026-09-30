@@ -137,10 +137,14 @@ export class PlayerFFMPEG implements IAudioPlayer {
   }
 
   tick(): void {
-    const inMusicWindow = this.slotSchedule.isMusicWindow();
+    const inMusicWindow = this.slotSchedule.isPlaybackDay() && this.slotSchedule.isMusicWindow();
     const endOfBreak = this.slotSchedule.getSlotEndSeconds();
     const now = this.slotSchedule.nowSeconds();
     const inFadeZone = endOfBreak != null && endOfBreak - now <= this.fadeOutSecondsBeforeEnd;
+
+    if (!inMusicWindow) {
+      this.queueManager.alignQueueToUpcomingDay();
+    }
 
     if (this.playProcess) {
       if (!inMusicWindow) {
@@ -213,7 +217,12 @@ export class PlayerFFMPEG implements IAudioPlayer {
     const queue = data.queue || [];
     const withPath = queue
       .map((item) => ({ ...item, song: songsById[item.songId] }))
-      .filter((item) => item.song?.localPath && this.fileStore.exists(item.song.localPath));
+      .filter(
+        (item) =>
+          item.song?.localPath &&
+          this.fileStore.exists(item.song.localPath) &&
+          this.queueManager.isSongAllowedNow(item.songId),
+      );
     const next = withPath.find((item) => item.songId !== this.lastPlayedSongId) ?? withPath[0];
     return next && next.song?.localPath
       ? { ...next, localPath: next.song.localPath, estimatedPlayAt: next.estimatedPlayAt }
@@ -336,7 +345,7 @@ export class PlayerFFMPEG implements IAudioPlayer {
       remainingSlotSeconds: remainingSlot,
       fadeOutSecondsBeforeEnd: this.fadeOutSecondsBeforeEnd,
     });
-    const outcome = await this.playMp3(buildFfplayArgs(plan));
+    const outcome = await this.playMp3(buildFfplayArgs(plan, this.slotSchedule.playbackVolumePercentage()));
     if (outcome === "completed") {
       this.notifySongConsumed();
       this.clearNowPlaying();

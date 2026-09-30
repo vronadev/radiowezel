@@ -52,8 +52,9 @@ export function planFfplayPlayback(input: PlanFfplayPlaybackInput): FfplayPlayba
   };
 }
 
-export function buildFfplayArgs(plan: FfplayPlaybackPlan): string[] {
-  const args = ["-nodisp", "-autoexit", "-loglevel", "quiet", "-hide_banner"];
+export function buildFfplayArgs(plan: FfplayPlaybackPlan, volumePercentage = 100): string[] {
+  const volume = Math.min(100, Math.max(0, Math.round(volumePercentage)));
+  const args = ["-nodisp", "-autoexit", "-loglevel", "quiet", "-hide_banner", "-volume", String(volume)];
   if (plan.startSeconds > 0) {
     args.push("-ss", formatFfplaySeconds(plan.startSeconds));
   }

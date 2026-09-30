@@ -21,6 +21,10 @@ import type { SongService } from "./songService.js";
 import { SystemClock } from "./systemClock.js";
 import type { VoteService } from "./voteService.js";
 import { compareTiedVoteSongs, resolveVoteTieBreakMode, type VoteTieBreakMode } from "../config/voteTieBreak.js";
+import { formatLocalDate } from "../utils/localCalendar.js";
+
+const VOTED_QUEUE_LIMIT = 20;
+const DEFER_HORIZON_DAYS = 21;
 
 const EMPTY_QUEUE_FILE: QueueFileData = { nowPlaying: null, queue: [], updatedAt: null };
 
@@ -53,6 +57,7 @@ export class QueueManager {
   private readonly voteTieBreakMode: VoteTieBreakMode;
   private readonly onMutated?: () => void;
   private readOnlyDepth = 0;
+  private builtForPlayDay: string | null = null;
 
   constructor(options: QueueManagerOptions) {
     this.songService = options.songService;
@@ -143,14 +148,48 @@ export class QueueManager {
       .map((song, index) => this.toQueueItem(song, 0, index, "r"));
   }
 
+  /**
+   * After the last slot, the next music is on a later calendar day.
+   * Rebuild once for that day so the queue matches its effective playlist.
+   */
+  alignQueueToUpcomingDay(): void {
+    const now = this.clock.now();
+    const next = this.slotSchedule.nextPlayableInstant(now);
+    const nextDay = formatLocalDate(next);
+    if (nextDay === formatLocalDate(now) || this.builtForPlayDay === nextDay) {
+      return;
+    }
+    this.refreshQueueFile();
+  }
+
+  isSongAllowedNow(songId: string): boolean {
+    return this.isSongAllowedAt(songId, this.clock.now());
+  }
+
   computeQueueETAs(queue: QueueItem[], nowPlaying: NowPlaying | null): QueueItem[] {
     if (!queue.length) {
       return queue;
     }
     const now = this.clock.now();
     let cursor = this.initialEtaCursor(now, nowPlaying);
+    const allowance = new Map<string, Set<string> | null>();
+    const anchor = cursor;
+    let deferredCursor: Date | null = null;
     const out: QueueItem[] = [];
     for (const item of queue) {
+      if (!this.songAllowedOn(item.songId, anchor, allowance)) {
+        if (!deferredCursor) {
+          deferredCursor = this.instantAfterLocalDay(anchor);
+        }
+        const placed = this.nextAllowedPlayInstant(item.songId, deferredCursor, allowance);
+        if (!placed) {
+          out.push({ ...item, estimatedPlayAt: null });
+          continue;
+        }
+        out.push({ ...item, estimatedPlayAt: placed.toISOString() });
+        deferredCursor = new Date(placed.getTime() + (item.durationSeconds || 180) * 1000);
+        continue;
+      }
       cursor = this.slotSchedule.nextPlayableInstant(cursor);
       const copy = { ...item, estimatedPlayAt: cursor.toISOString() };
       cursor = new Date(cursor.getTime() + (copy.durationSeconds || 180) * 1000);
@@ -163,13 +202,22 @@ export class QueueManager {
     const slots = this.slotSchedule.getSlots();
     const votesBySong = this.voteService.getVotesBySong();
     const songsById = this.songService.getSongsById();
-    const effectivePlaylistId = this.playlistService.getEffectivePlaylistId();
-    const allowedSongIds = this.playlistService.getSongIdsInPlaylist(effectivePlaylistId);
-    const excludedFromRandom = this.playlistService.getSongIdsExcludedFromRandom(effectivePlaylistId);
-    const votedQueue = this.buildQueueFromVotes(votesBySong, songsById, 20, allowedSongIds);
-    const votedIds = new Set(votedQueue.map((item) => item.songId));
+    const anchor = this.schedulingAnchor();
+    const { allowedSongIds, allowedSet, excludedFromRandom } = this.playlistContextAt(anchor);
+    const votedSorted = this.buildQueueFromVotes(votesBySong, songsById, Number.MAX_SAFE_INTEGER, null);
+    const eligibleVoted: QueueItem[] = [];
+    const deferredVoted: QueueItem[] = [];
+    for (const item of votedSorted) {
+      if (this.songAllowed(item.songId, allowedSet)) {
+        eligibleVoted.push(item);
+      } else {
+        deferredVoted.push(item);
+      }
+    }
+    const playableVoted = eligibleVoted.slice(0, VOTED_QUEUE_LIMIT);
+    const deferredTail = deferredVoted.slice(0, VOTED_QUEUE_LIMIT);
+    const votedIds = new Set([...playableVoted, ...deferredTail].map((item) => item.songId));
     const data = this.readQueueFile();
-    const allowedSet = allowedSongIds ? new Set(allowedSongIds) : null;
     const pool = Object.values(songsById).filter(
       (song) => this.isPlayableSong(song, allowedSet) && !excludedFromRandom.has(song.id),
     );
@@ -203,9 +251,9 @@ export class QueueManager {
       if (!song || !this.isPlayableSong(song, allowedSet)) {
         return [];
       }
-      return [this.toQueueItem(song, 0, votedQueue.length + index, "r")];
+      return [this.toQueueItem(song, 0, playableVoted.length + index, "r")];
     });
-    const queue = this.uniqueQueueItems([...votedQueue, ...randomItems]).map((item, index) => ({
+    const queue = this.uniqueQueueItems([...playableVoted, ...randomItems, ...deferredTail]).map((item, index) => ({
       ...item,
       position: index + 1,
     }));
@@ -218,6 +266,7 @@ export class QueueManager {
     const existing = this.readQueueFile();
     built.data.nowPlaying = existing.nowPlaying;
     built.data.queue = built.queue;
+    this.builtForPlayDay = formatLocalDate(this.schedulingAnchor());
     this.writeQueueFile(built.data);
     return built.data;
   }
@@ -252,12 +301,9 @@ export class QueueManager {
     let randomFillOrder = (data.randomFillOrder || []).filter((id) => id !== songId);
     const votesBySong = this.voteService.getVotesBySong();
     const songsById = this.songService.getSongsById();
-    const effectivePlaylistId = this.playlistService.getEffectivePlaylistId();
-    const allowedSongIds = this.playlistService.getSongIdsInPlaylist(effectivePlaylistId);
-    const excludedFromRandom = this.playlistService.getSongIdsExcludedFromRandom(effectivePlaylistId);
-    const votedQueue = this.buildQueueFromVotes(votesBySong, songsById, 20, allowedSongIds);
+    const { allowedSet, excludedFromRandom } = this.playlistContextAt(this.schedulingAnchor());
+    const votedQueue = this.buildQueueFromVotes(votesBySong, songsById, Number.MAX_SAFE_INTEGER, null);
     const votedIds = new Set(votedQueue.map((item) => item.songId));
-    const allowedSet = allowedSongIds ? new Set(allowedSongIds) : null;
     const pool = Object.values(songsById).filter(
       (song) => this.isPlayableSong(song, allowedSet) && !excludedFromRandom.has(song.id) && song.id !== songId,
     );
@@ -415,5 +461,80 @@ export class QueueManager {
       return this.slotSchedule.nextPlayableInstant(new Date(now.getTime() + remainingCurrent * 1000));
     }
     return this.slotSchedule.nextPlayableInstant(now);
+  }
+
+  private schedulingAnchor(): Date {
+    return this.slotSchedule.nextPlayableInstant(this.clock.now());
+  }
+
+  private playlistContextAt(at: Date): {
+    allowedSongIds: string[] | null;
+    allowedSet: Set<string> | null;
+    excludedFromRandom: Set<string>;
+  } {
+    const playlistIds = this.playlistService.getEffectivePlaylistIds(at);
+    const allowedSongIds = this.playlistService.getAllowedSongIdsAt(at);
+    return {
+      allowedSongIds,
+      allowedSet: allowedSongIds ? new Set(allowedSongIds) : null,
+      excludedFromRandom: this.playlistService.getSongIdsExcludedFromRandom(playlistIds),
+    };
+  }
+
+  private songAllowed(songId: string, allowed: Set<string> | null): boolean {
+    return !allowed || allowed.has(songId);
+  }
+
+  private isSongAllowedAt(songId: string, at: Date): boolean {
+    const allowed = this.playlistService.getAllowedSongIdsAt(at);
+    return !allowed || allowed.includes(songId);
+  }
+
+  private songAllowedOn(songId: string, at: Date, cache: Map<string, Set<string> | null>): boolean {
+    const key = formatLocalDate(at);
+    if (!cache.has(key)) {
+      const ids = this.playlistService.getAllowedSongIdsAt(at);
+      cache.set(key, ids ? new Set(ids) : null);
+    }
+    const allowed = cache.get(key) ?? null;
+    return !allowed || allowed.has(songId);
+  }
+
+  /** First playable instant after the last slot on `day`'s calendar day. */
+  private instantAfterLocalDay(day: Date): Date {
+    const end = this.slotSchedule.lastMusicEndOn(day);
+    if (!end) {
+      const next = new Date(day.getTime());
+      next.setDate(next.getDate() + 1);
+      next.setHours(0, 0, 0, 0);
+      return this.slotSchedule.nextPlayableInstant(next);
+    }
+    const next = this.slotSchedule.nextPlayableInstant(end);
+    if (next.getTime() <= end.getTime()) {
+      const bumped = new Date(end.getTime());
+      bumped.setDate(bumped.getDate() + 1);
+      bumped.setHours(0, 0, 0, 0);
+      return this.slotSchedule.nextPlayableInstant(bumped);
+    }
+    return next;
+  }
+
+  private nextAllowedPlayInstant(
+    songId: string,
+    from: Date,
+    cache: Map<string, Set<string> | null>,
+  ): Date | null {
+    let cursor = this.slotSchedule.nextPlayableInstant(from);
+    for (let day = 0; day < DEFER_HORIZON_DAYS; day += 1) {
+      if (this.songAllowedOn(songId, cursor, cache)) {
+        return cursor;
+      }
+      const next = this.instantAfterLocalDay(cursor);
+      if (next.getTime() <= cursor.getTime()) {
+        return null;
+      }
+      cursor = next;
+    }
+    return null;
   }
 }

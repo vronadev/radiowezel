@@ -78,10 +78,23 @@ export class PlaylistRepository {
     this.database.prepare("DELETE FROM playlists WHERE id = ?").run(id);
   }
 
+  /**
+   * @deprecated Single-playlist wrapper. Use getSongIdsInPlaylists.
+   */
   getSongIdsInPlaylist(playlistId: string): string[] {
+    return this.getSongIdsInPlaylists([playlistId]);
+  }
+
+  getSongIdsInPlaylists(playlistIds: string[]): string[] {
+    if (!playlistIds.length) {
+      return [];
+    }
+    const placeholders = playlistIds.map(() => "?").join(", ");
     return this.database
-      .prepare<{ song_id: string }>("SELECT song_id FROM playlist_songs WHERE playlist_id = ?")
-      .all(playlistId)
+      .prepare<{ song_id: string }>(
+        `SELECT DISTINCT song_id FROM playlist_songs WHERE playlist_id IN (${placeholders})`,
+      )
+      .all(...playlistIds)
       .map((row) => row.song_id);
   }
 
@@ -147,12 +160,21 @@ export class PlaylistRepository {
     return new Set(rows.map((row) => row.song_id));
   }
 
-  getSongIdsExcludedFromRandom(effectivePlaylistId: string): Set<string> {
+  getSongIdsExcludedFromRandom(effectivePlaylistIds: string[]): Set<string> {
+    if (!effectivePlaylistIds.length) {
+      const rows = this.database
+        .prepare<{ song_id: string }>(
+          "SELECT DISTINCT ps.song_id FROM playlist_songs ps JOIN playlists p ON p.id = ps.playlist_id WHERE p.exclude_from_random = 1",
+        )
+        .all();
+      return new Set(rows.map((row) => row.song_id));
+    }
+    const placeholders = effectivePlaylistIds.map(() => "?").join(", ");
     const rows = this.database
       .prepare<{ song_id: string }>(
-        "SELECT DISTINCT ps.song_id FROM playlist_songs ps JOIN playlists p ON p.id = ps.playlist_id WHERE p.exclude_from_random = 1 AND (? = '' OR p.id != ?)",
+        `SELECT DISTINCT ps.song_id FROM playlist_songs ps JOIN playlists p ON p.id = ps.playlist_id WHERE p.exclude_from_random = 1 AND p.id NOT IN (${placeholders})`,
       )
-      .all(effectivePlaylistId, effectivePlaylistId);
+      .all(...effectivePlaylistIds);
     return new Set(rows.map((row) => row.song_id));
   }
 

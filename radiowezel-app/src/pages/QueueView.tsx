@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,12 +10,7 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { Music, ThumbsUp, Loader2, SkipForward, Trash2, Clock } from "lucide-react";
 import type { QueueItem, NowPlaying, ScheduleContext } from "@/types/api";
 import LogoSet from "@/components/LogoSet";
-
-function formatTime(iso: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
+import { formatEstimatedPlayAt } from "@/lib/formatEstimatedPlayAt";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -91,7 +86,7 @@ function QueueRow({
         </Badge>
         {!isNowPlaying && (
           <span className="text-xs sm:text-sm text-muted-foreground">
-            ok. {formatTime(item.estimatedPlayAt)}
+            ok. {formatEstimatedPlayAt(item.estimatedPlayAt)}
           </span>
         )}
         {!isNowPlaying && onVote && (
@@ -184,7 +179,9 @@ export function QueueView() {
       toast({ title: "Oddano głos", description: voted?.title ? `Na „${voted.title}”` : undefined });
       fetchQueue();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setVotingSongId(null);
     }
@@ -197,7 +194,9 @@ export function QueueView() {
       toast({ title: "Pomijam - następny utwór" });
       fetchQueue();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setSkipping(false);
     }
@@ -210,7 +209,9 @@ export function QueueView() {
       toast({ title: "Usunięto z kolejki" });
       fetchQueue();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setRemovingSongId(null);
     }

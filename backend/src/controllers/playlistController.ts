@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { EffectivePlaylistResponse } from "../@types/models.js";
 import { ErrorMessages } from "../constants/errorMessages.js";
 import { routeParam } from "../middlewares/routeParam.js";
 import type { QueueManager } from "../services/queueManager.js";
@@ -15,16 +16,17 @@ export class PlaylistController {
   ) {}
 
   getEffective = (_request: Request, response: Response): void => {
-    const playlistId = this.playlistService.getEffectivePlaylistId();
-    if (!playlistId) {
-      response.json({ playlistId: null, playlistName: null });
-      return;
-    }
-    const playlist = this.playlistService.getById(playlistId);
-    response.json({
-      playlistId: playlist?.id || null,
-      playlistName: playlist?.name || null,
-    });
+    const playlists = this.playlistService
+      .getEffectivePlaylistIds()
+      .map((id) => this.playlistService.getById(id))
+      .filter((playlist): playlist is NonNullable<typeof playlist> => !!playlist)
+      .map((playlist) => ({ id: playlist.id, name: playlist.name }));
+    const body: EffectivePlaylistResponse = {
+      playlistId: playlists[0]?.id ?? null,
+      playlistName: playlists[0]?.name ?? null,
+      playlists,
+    };
+    response.json(body);
   };
 
   getPublicById = (request: Request, response: Response): void => {
@@ -121,6 +123,9 @@ export class PlaylistController {
     if (!updated) {
       response.status(404).json({ message: ErrorMessages.notFound });
       return;
+    }
+    if (excludeFromRandom !== undefined || excludeFromVoting !== undefined) {
+      this.queueManager.refreshQueueFile();
     }
     response.json({ success: true });
   };

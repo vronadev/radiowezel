@@ -8,12 +8,7 @@ import { Music } from "lucide-react";
 import type { QueueItem, NowPlaying } from "@/types/api";
 import LogoSet from "@/components/LogoSet";
 import { useRealtime } from "@/hooks/useRealtime";
-
-function formatTime(iso: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
+import { formatEstimatedPlayAt } from "@/lib/formatEstimatedPlayAt";
 
 function QueueRow({ item, isNowPlaying }: { item: QueueItem | NowPlaying; isNowPlaying?: boolean }) {
   return (
@@ -41,7 +36,7 @@ function QueueRow({ item, isNowPlaying }: { item: QueueItem | NowPlaying; isNowP
         </Badge>
         {!isNowPlaying && (
           <span className="text-sm text-muted-foreground">
-            ok. {formatTime(item.estimatedPlayAt)}
+            ok. {formatEstimatedPlayAt(item.estimatedPlayAt)}
           </span>
         )}
       </div>

@@ -5,15 +5,23 @@ import { formatLocalDate, localWeekday } from "../utils/localCalendar.js";
 export class ScheduleService {
   constructor(private readonly playlistScheduleRepository: PlaylistScheduleRepository) {}
 
-  resolveScheduledPlaylistId(at: Date = new Date()): string | null {
+  resolveScheduledPlaylistIds(at: Date = new Date()): string[] | null {
     const dateStr = formatLocalDate(at);
     const dayOfWeek = localWeekday(at);
-    const oneOff = this.playlistScheduleRepository.findOneOffPlaylistId(dateStr);
-    if (oneOff) {
+    const oneOff = this.playlistScheduleRepository.findOneOffPlaylistIds(dateStr);
+    if (oneOff.length > 0) {
       return oneOff;
     }
-    const cyclic = this.playlistScheduleRepository.findCyclicPlaylistId(dayOfWeek);
-    return cyclic ?? null;
+    const cyclic = this.playlistScheduleRepository.findCyclicPlaylistIds(dayOfWeek);
+    return cyclic.length > 0 ? cyclic : null;
+  }
+
+  /**
+   * @deprecated Returns only the first scheduled playlist for the day.
+   * Use resolveScheduledPlaylistIds.
+   */
+  resolveScheduledPlaylistId(at: Date = new Date()): string | null {
+    return this.resolveScheduledPlaylistIds(at)?.[0] ?? null;
   }
 
   listCyclic(): CyclicScheduleItem[] {

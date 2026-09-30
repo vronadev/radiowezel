@@ -5,7 +5,7 @@
   "adminPassword": "admin123",
   "schedule": {
     "slots": [
-      { "start": "07:30", "end": "08:00" },
+      { "start": "07:30", "end": "08:00", "volumePercentage": 100 },
       { "start": "08:45", "end": "08:50" },
       { "start": "09:35", "end": "09:40" },
       { "start": "10:25", "end": "10:30" },
@@ -22,7 +22,8 @@
     ],
     "bellStartOffsetSeconds": 30,
     "bellEndOffsetSeconds": 30,
-    "fadeOutSecondsBeforeEnd": 5
+    "fadeOutSecondsBeforeEnd": 5,
+    "activeDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
   },
   "voteTieBreakMode": "oldest_vote",
   "dataDir": "./data",

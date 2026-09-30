@@ -3,6 +3,8 @@ export const ALLOWED_EMAIL_DOMAIN = "zsi.kielce.pl";
 export interface ScheduleSlot {
   start: string; // "HH:mm"
   end: string;
+  /** Playback loudness while this slot is active. Omitted means 100%. */
+  volumePercentage?: number;
 }
 
 export interface QueueItem {
@@ -65,6 +67,7 @@ export interface ScheduleConfig {
   bellStartOffsetSeconds: number;
   bellEndOffsetSeconds: number;
   fadeOutSecondsBeforeEnd: number;
+  activeDays?: number[];
 }
 
 export interface ScheduleContext {

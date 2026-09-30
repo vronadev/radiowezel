@@ -58,6 +58,35 @@ describe("Phase 1 data layer", () => {
     expect(playlistService.getEffectivePlaylistId(earlyLocal)).toBe(playlist);
   });
 
+  it("unions every playlist assigned to the same scheduled day", () => {
+    const created = createLayer();
+    database = created.database;
+    const { playlistService, scheduleService, songService } = created.layer;
+    const first = playlistService.create("A", null);
+    const second = playlistService.create("B", null);
+    const songA = songService.createPending({
+      title: "A",
+      author: "A",
+      coverUrl: null,
+      youtubeUrl: "https://www.youtube.com/watch?v=ddddddddddd",
+    });
+    const songB = songService.createPending({
+      title: "B",
+      author: "B",
+      coverUrl: null,
+      youtubeUrl: "https://www.youtube.com/watch?v=eeeeeeeeeee",
+    });
+    playlistService.addSong(first, songA, "manual");
+    playlistService.addSong(second, songB, "manual");
+    const at = new Date(2026, 8, 8, 12, 0, 0);
+    scheduleService.replaceCyclic([
+      { playlistId: first, dayOfWeek: localWeekday(at) },
+      { playlistId: second, dayOfWeek: localWeekday(at) },
+    ]);
+    expect(playlistService.getEffectivePlaylistIds(at).sort()).toEqual([first, second].sort());
+    expect(playlistService.getAllowedSongIdsAt(at)?.sort()).toEqual([songA, songB].sort());
+  });
+
   it("filters votable songs using exclude_from_voting when no playlist is active", () => {
     const created = createLayer();
     database = created.database;

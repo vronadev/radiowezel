@@ -20,7 +20,26 @@ function libraryGroup(id: string, votableSet: Set<string>, voteCounts: Record<st
   return 2;
 }
 
-export function applyLibraryOrder<T extends { id: string; totalVotes?: number }>(
+type LibrarySong = {
+  id: string;
+  totalVotes?: number;
+  title?: string;
+  author?: string;
+};
+
+function compareCatalogFallback(left: LibrarySong, right: LibrarySong): number {
+  const byTitle = (left.title || "").localeCompare(right.title || "", "pl", { sensitivity: "base" });
+  if (byTitle !== 0) {
+    return byTitle;
+  }
+  const byAuthor = (left.author || "").localeCompare(right.author || "", "pl", { sensitivity: "base" });
+  if (byAuthor !== 0) {
+    return byAuthor;
+  }
+  return left.id.localeCompare(right.id);
+}
+
+export function applyLibraryOrder<T extends LibrarySong>(
   rows: T[],
   votableIds: string[],
   voteCounts: Record<string, LibraryVoteCount>,
@@ -51,7 +70,11 @@ export function applyLibraryOrder<T extends { id: string; totalVotes?: number }>
       return (right.totalVotes || 0) - (left.totalVotes || 0);
     }
     if (sort === "votes") {
-      return byVotes;
+      const byTotal = (right.totalVotes || 0) - (left.totalVotes || 0);
+      if (byTotal !== 0) {
+        return byTotal;
+      }
+      return compareCatalogFallback(left, right);
     }
     return 0;
   });

@@ -34,7 +34,11 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [effectivePlaylist, setEffectivePlaylist] = useState<{ playlistId: string | null; playlistName: string | null } | null>(null);
+  const [effectivePlaylist, setEffectivePlaylist] = useState<{
+    playlistId: string | null;
+    playlistName: string | null;
+    playlists?: { id: string; name: string }[];
+  } | null>(null);
 
   useEffect(() => {
     api.getEffectivePlaylist().then(setEffectivePlaylist).catch(() => setEffectivePlaylist({ playlistId: null, playlistName: null }));
@@ -43,25 +47,42 @@ function Layout({ children }: { children: React.ReactNode }) {
   const tab =
     location.pathname === "/vote"
       ? "vote"
-      : location.pathname.startsWith("/admin")
-        ? "admin"
-        : location.pathname.startsWith("/playlist")
-          ? "queue"
-          : location.pathname === "/ranking"
-            ? "ranking"
-            : location.pathname === "/history"
-              ? "history"
-              : "queue";
+      : location.pathname === "/requests"
+        ? "requests"
+        : location.pathname.startsWith("/admin")
+          ? "admin"
+          : location.pathname.startsWith("/playlist")
+            ? "queue"
+            : location.pathname === "/ranking"
+              ? "ranking"
+              : location.pathname === "/history"
+                ? "history"
+                : "queue";
+
+  const listedPlaylists =
+    effectivePlaylist?.playlists?.filter((playlist) => playlist.id && playlist.name) ??
+    (effectivePlaylist?.playlistId && effectivePlaylist.playlistName
+      ? [{ id: effectivePlaylist.playlistId, name: effectivePlaylist.playlistName }]
+      : []);
 
   return (
     <div className="min-h-screen flex flex-col">
-      {effectivePlaylist?.playlistName && (
+      {listedPlaylists.length > 0 && (
         <div className="bg-muted/60 border-b px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-2 min-w-0">
           <ListMusic className="h-4 w-4 shrink-0" />
-          <span className="shrink-0">Obowiązuje playlista:</span>
-          <Link to={`/playlist/${effectivePlaylist.playlistId}`} className="font-medium text-foreground hover:underline truncate">
-            {effectivePlaylist.playlistName}
-          </Link>
+          <span className="shrink-0">
+            {listedPlaylists.length > 1 ? "Obowiązują playlisty:" : "Obowiązuje playlista:"}
+          </span>
+          <span className="truncate">
+            {listedPlaylists.map((playlist, index) => (
+              <span key={playlist.id}>
+                {index > 0 ? ", " : null}
+                <Link to={`/playlist/${playlist.id}`} className="font-medium text-foreground hover:underline">
+                  {playlist.name}
+                </Link>
+              </span>
+            ))}
+          </span>
         </div>
       )}
       {effectivePlaylist && effectivePlaylist.playlistId === null && (
@@ -77,6 +98,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             </TabsTrigger>
             <TabsTrigger value="vote" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/vote">Głosowanie</Link>
+            </TabsTrigger>
+            <TabsTrigger value="requests" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
+              <Link to="/requests">Zgłoszenia</Link>
             </TabsTrigger>
             <TabsTrigger value="ranking" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/ranking">Ranking</Link>

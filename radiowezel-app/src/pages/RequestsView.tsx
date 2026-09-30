@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +24,7 @@ export function RequestsView() {
     api
       .getSongRequests()
       .then((r) => setRequests(r.requests || []))
-      .catch((e) => toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" }))
+      .catch((e) => { if (!isApiTimeoutError(e)) toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" }); })
       .finally(() => setLoading(false));
   }, [toast]);
 
@@ -61,7 +61,9 @@ export function RequestsView() {
       });
       load();
     } catch (e) {
-      toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      if (!isApiTimeoutError(e)) {
+        toast({ title: "Błąd", description: (e as Error).message, variant: "destructive" });
+      }
     } finally {
       setBumpingId(null);
     }
@@ -76,7 +78,7 @@ export function RequestsView() {
             Najczęściej zgłaszane
           </CardTitle>
           <CardDescription>
-            Przeglądaj oczekujące zgłoszenia, odsłuchaj zajawkę z okładki i podbij utwór.
+            Zgłoszenia z YouTube i YouTube Music. Odsłuchaj zajawkę z okładki i podbij utwór.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

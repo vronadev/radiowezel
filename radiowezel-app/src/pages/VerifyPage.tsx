@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { api, isApiTimeoutError } from "@/lib/api";
 
 export function VerifyPage() {
   const [searchParams] = useSearchParams();
@@ -34,12 +34,14 @@ export function VerifyPage() {
         toast({ title: "Zalogowano" });
 
         navigate("/", { replace: true });
-      } catch {
+      } catch (e) {
         setStatus("error");
-        toast({
-          title: "Link wygasł lub jest nieprawidłowy",
-          variant: "destructive",
-        });
+        if (!isApiTimeoutError(e)) {
+          toast({
+            title: "Link wygasł lub jest nieprawidłowy",
+            variant: "destructive",
+          });
+        }
       }
     })();
   }, [token]);
