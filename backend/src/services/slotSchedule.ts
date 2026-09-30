@@ -1,14 +1,32 @@
 import type { BreakWindow, ScheduleContext, ScheduleSlot } from "../@types/models.js";
+import { DEFAULT_ACTIVE_PLAYBACK_DAYS } from "../config/activePlaybackDays.js";
 import type { IClock } from "../interfaces/IClock.js";
 import { SystemClock } from "./systemClock.js";
 
 export class SlotSchedule {
+  private activeDays: Set<number>;
+
   constructor(
     private readonly slots: ScheduleSlot[],
     private readonly clock: IClock = new SystemClock(),
     private readonly bellEndOffsetSeconds = 0,
     private readonly bellStartOffsetSeconds = 0,
-  ) {}
+    activeDays: number[] = DEFAULT_ACTIVE_PLAYBACK_DAYS,
+  ) {
+    this.activeDays = new Set(activeDays);
+  }
+
+  setActiveDays(days: number[]): void {
+    this.activeDays = new Set(days.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6));
+  }
+
+  getActiveDays(): number[] {
+    return [...this.activeDays].sort((left, right) => left - right);
+  }
+
+  isPlaybackDay(at: Date = this.clock.now()): boolean {
+    return this.activeDays.has(at.getDay());
+  }
 
   getSlots(): ScheduleSlot[] {
     return this.slots;
@@ -91,11 +109,19 @@ export class SlotSchedule {
   }
 
   nextPlayableInstant(from: Date): Date {
-    if (!this.slots.length) {
-      return from;
-    }
     let cursor = new Date(from.getTime());
-    for (let attempt = 0; attempt < 16; attempt += 1) {
+    if (!this.slots.length) {
+      return this.isPlaybackDay(cursor) ? cursor : (this.firstInstantOnNextOpenDay(cursor) ?? cursor);
+    }
+    for (let attempt = 0; attempt < 21; attempt += 1) {
+      if (!this.isPlaybackDay(cursor)) {
+        const opened = this.firstInstantOnNextOpenDay(cursor);
+        if (!opened || opened.getTime() <= cursor.getTime()) {
+          return cursor;
+        }
+        cursor = opened;
+        continue;
+      }
       const atSeconds = this.nowSeconds(cursor);
       if (this.isMusicWindow(atSeconds)) {
         return cursor;
@@ -148,7 +174,7 @@ export class SlotSchedule {
   }
 
   getScheduleContext(): ScheduleContext {
-    if (!this.slots.length) {
+    if (!this.slots.length || !this.isPlaybackDay()) {
       return { currentSlot: null, nextSlot: null, inBreak: false };
     }
     const inBreak = this.isInBreak();
@@ -159,6 +185,36 @@ export class SlotSchedule {
       nextSlot: next?.slot ? { start: next.slot.start, end: next.slot.end } : null,
       inBreak,
     };
+  }
+
+  private firstInstantOnNextOpenDay(from: Date): Date | null {
+    const day = new Date(from.getTime());
+    for (let step = 0; step < 7; step += 1) {
+      day.setDate(day.getDate() + 1);
+      if (this.isPlaybackDay(day)) {
+        return this.firstMusicInstant(day);
+      }
+    }
+    return null;
+  }
+
+  private firstMusicInstant(day: Date): Date {
+    if (!this.slots.length) {
+      const midnight = new Date(day.getTime());
+      midnight.setHours(0, 0, 0, 0);
+      return midnight;
+    }
+    let earliest = Number.POSITIVE_INFINITY;
+    let chosen: { start: number; end: number } | null = null;
+    for (const slot of this.slots) {
+      const start = this.parseTimeToSeconds(slot.start);
+      const end = this.parseTimeToSeconds(slot.end);
+      if (start < earliest) {
+        earliest = start;
+        chosen = { start, end };
+      }
+    }
+    return this.dateFromSeconds(this.musicStartSeconds(chosen ?? { start: 0, end: 0 }), day);
   }
 
   private findSlot(atSeconds: number): { start: number; end: number } | null {

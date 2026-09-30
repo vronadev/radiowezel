@@ -272,6 +272,7 @@ export const api = {
     activePlaylistId: string | null;
     cyclic: { id: string; playlistId: string; dayOfWeek: number }[];
     oneOff: { id: string; playlistId: string; date: string }[];
+    activeDays?: number[];
   }> {
     const res = await apiFetch(`${API}/admin/playlist-schedule`, { credentials: "include" });
     return handleRes(res);
@@ -281,7 +282,8 @@ export const api = {
     activePlaylistId?: string | null;
     cyclic?: { playlistId: string; dayOfWeek: number }[];
     oneOff?: { playlistId: string; date: string }[];
-  }): Promise<{ activePlaylistId: string | null; cyclic: unknown[]; oneOff: unknown[] }> {
+    activeDays?: number[];
+  }): Promise<{ activePlaylistId: string | null; cyclic: unknown[]; oneOff: unknown[]; activeDays?: number[] }> {
     const res = await apiFetch(`${API}/admin/playlist-schedule`, {
       method: "PATCH",
       headers: getHeaders(),

@@ -83,4 +83,19 @@ describe("SlotSchedule", () => {
     expect(waited.getMinutes()).toBe(45);
     expect(waited.getSeconds()).toBe(30);
   });
+
+  it("skips closed weekend days and reports the station as not in a break", () => {
+    const saturday = atLocalTime(8, 47);
+    saturday.setDate(saturday.getDate() + 5);
+    const schedule = new SlotSchedule(slots, new FixedClock(saturday));
+    expect(saturday.getDay()).toBe(6);
+    expect(schedule.isPlaybackDay()).toBe(false);
+    expect(schedule.isMusicWindow()).toBe(true);
+    expect(schedule.getScheduleContext()).toEqual({ currentSlot: null, nextSlot: null, inBreak: false });
+    const next = schedule.nextPlayableInstant(saturday);
+    expect(next.getDay()).toBe(1);
+    expect(next.getHours()).toBe(8);
+    expect(next.getMinutes()).toBe(45);
+    expect(next.getDate()).toBe(saturday.getDate() + 2);
+  });
 });

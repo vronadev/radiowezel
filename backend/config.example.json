@@ -22,7 +22,8 @@
     ],
     "bellStartOffsetSeconds": 30,
     "bellEndOffsetSeconds": 30,
-    "fadeOutSecondsBeforeEnd": 5
+    "fadeOutSecondsBeforeEnd": 5,
+    "activeDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
   },
   "voteTieBreakMode": "oldest_vote",
   "dataDir": "./data",

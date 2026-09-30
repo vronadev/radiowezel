@@ -10,12 +10,7 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { Music, ThumbsUp, Loader2, SkipForward, Trash2, Clock } from "lucide-react";
 import type { QueueItem, NowPlaying, ScheduleContext } from "@/types/api";
 import LogoSet from "@/components/LogoSet";
-
-function formatTime(iso: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
+import { formatEstimatedPlayAt } from "@/lib/formatEstimatedPlayAt";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -91,7 +86,7 @@ function QueueRow({
         </Badge>
         {!isNowPlaying && (
           <span className="text-xs sm:text-sm text-muted-foreground">
-            ok. {formatTime(item.estimatedPlayAt)}
+            ok. {formatEstimatedPlayAt(item.estimatedPlayAt)}
           </span>
         )}
         {!isNowPlaying && onVote && (

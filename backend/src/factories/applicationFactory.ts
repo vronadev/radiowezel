@@ -44,11 +44,13 @@ export class ApplicationFactory {
     const db = database ?? openDatabase(config.dbPath);
     const dataLayer = DataLayerFactory.create(db);
     const clock = new SystemClock();
+    const activeDays = dataLayer.settingsService.getActivePlaybackDays(config.schedule.activeDays);
     const slotSchedule = new SlotSchedule(
       config.schedule.slots,
       clock,
       config.schedule.bellEndOffsetSeconds,
       config.schedule.bellStartOffsetSeconds,
+      activeDays,
     );
     const realtime = new RealtimeHub();
     const queueManager = QueueManagerFactory.create({

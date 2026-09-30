@@ -65,6 +65,7 @@ export interface ScheduleConfig {
   bellStartOffsetSeconds: number;
   bellEndOffsetSeconds: number;
   fadeOutSecondsBeforeEnd: number;
+  activeDays?: number[];
 }
 
 export interface ScheduleContext {

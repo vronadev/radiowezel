@@ -13,6 +13,7 @@ import {
   DEFAULT_QUEUE_RANDOM_MIN_REMAINING,
 } from "../constants/queueFill.js";
 import { parseFrontendOrigins } from "../http/frontendOrigins.js";
+import { DEFAULT_ACTIVE_PLAYBACK_DAYS, parseActivePlaybackDays } from "./activePlaybackDays.js";
 import { resolveVoteTieBreakMode } from "./voteTieBreak.js";
 
 dotenv.config();
@@ -30,6 +31,7 @@ interface RawConfigFile {
     bellStartOffsetSeconds?: number;
     bellEndOffsetSeconds?: number;
     fadeOutSecondsBeforeEnd?: number;
+    activeDays?: Array<number | string>;
   };
   voteTieBreakMode?: string;
   dataDir?: string;
@@ -141,6 +143,9 @@ export function loadConfig(): AppConfig {
         process.env.FADE_OUT_SECONDS_BEFORE_END ?? file.schedule?.fadeOutSecondsBeforeEnd,
         5,
       ),
+      activeDays:
+        parseActivePlaybackDays(process.env.SCHEDULE_ACTIVE_DAYS ?? file.schedule?.activeDays) ??
+        [...DEFAULT_ACTIVE_PLAYBACK_DAYS],
     },
     voteTieBreakMode: resolveVoteTieBreakMode(process.env.VOTE_TIE_BREAK_MODE, file.voteTieBreakMode),
     dataDir,
