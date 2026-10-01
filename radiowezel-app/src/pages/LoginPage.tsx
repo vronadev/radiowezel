@@ -7,15 +7,19 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { api, isApiTimeoutError } from "@/lib/api";
-import { ALLOWED_EMAIL_DOMAIN } from "@/types/api";
+import { resolveSchoolEmail, schoolEmailDomain } from "@/lib/schoolEmail";
+import { SchoolEmailInput } from "@/components/SchoolEmailInput";
 
 const PASSWORD_LOGIN_KEY = "showPasswordLogin";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [sentTo, setSentTo] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const domain = schoolEmailDomain();
   const [showPasswordLogin, setShowPasswordLogin] = useState(() =>
     typeof window !== "undefined" && sessionStorage.getItem(PASSWORD_LOGIN_KEY) === "1"
   );
@@ -25,17 +29,20 @@ export function LoginPage() {
   const { login } = useAuth();
   const { toast } = useToast();
 
-  const handlePasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) {
-      toast({ title: "Uzupełnij email i hasło", variant: "destructive" });
+  const updateEmail = (value: string) => {
+    setEmail(value);
+    if (emailError) {
+      setEmailError("");
+    }
+  };
+
+  const rejectEmail = (reason: "empty" | "plus" | "invalid-domain"): void => {
+    if (reason === "invalid-domain") {
+      setEmailError(`Dozwolone są tylko adresy @${domain}`);
       return;
     }
-    if (!email.trim().toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
-      toast({ title: `Dozwolone tylko adresy @${ALLOWED_EMAIL_DOMAIN}`, variant: "destructive" });
-      return;
-    }
-    if(email.includes("+")) {
+    setEmailError("");
+    if (reason === "plus") {
       toast({
         title: "Nieprawidłowy adres",
         description: "Adres e-mail nie może zawierać znaku +",
@@ -43,9 +50,24 @@ export function LoginPage() {
       });
       return;
     }
+    toast({ title: "Podaj adres e-mail", variant: "destructive" });
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) {
+      toast({ title: "Uzupełnij email i hasło", variant: "destructive" });
+      return;
+    }
+    const resolved = resolveSchoolEmail(email, domain);
+    if (!resolved.ok) {
+      rejectEmail(resolved.reason);
+      return;
+    }
+    setEmailError("");
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(resolved.email, password);
       toast({ title: "Zalogowano" });
       navigate(redirect, { replace: true });
     } catch (err) {
@@ -59,31 +81,18 @@ export function LoginPage() {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      toast({ title: "Podaj adres e-mail", variant: "destructive" });
+    const resolved = resolveSchoolEmail(email, domain);
+    if (!resolved.ok) {
+      rejectEmail(resolved.reason);
       return;
     }
-    if (!email.trim().toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
-      toast({
-        title: "Nieprawidłowa domena",
-        description: `Dozwolone są tylko adresy @${ALLOWED_EMAIL_DOMAIN}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if(email.includes("+")) {
-      toast({
-        title: "Nieprawidłowy adres",
-        description: "Adres e-mail nie może zawierać znaku +",
-        variant: "destructive",
-      });
-      return;
-    }
+    setEmailError("");
+    const address = resolved.email.toLowerCase();
 
     setLoading(true);
     try {
-      await api.sendMagicLink(email.trim().toLowerCase());
+      await api.sendMagicLink(address);
+      setSentTo(address);
       setSent(true);
       toast({ title: "Wysłano link", description: "Sprawdź skrzynkę i kliknij link do logowania." });
     } catch (e) {
@@ -102,7 +111,7 @@ export function LoginPage() {
           <CardHeader>
             <CardTitle>Sprawdź e-mail</CardTitle>
             <CardDescription>
-              Wysłaliśmy link do logowania na adres {email}. Kliknij go, aby się zalogować. Link jest ważny 1 godzinę.
+              Wysłaliśmy link do logowania na adres {sentTo}. Kliknij go, aby się zalogować. Link jest ważny 1 godzinę.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -121,20 +130,14 @@ export function LoginPage() {
         <CardHeader>
           <CardTitle>Logowanie</CardTitle>
           <CardDescription>
-            Wpisz adres e-mail szkolny (@{ALLOWED_EMAIL_DOMAIN}). Wyślemy Ci link – po kliknięciu będziesz zalogowany.
+            Wpisz login lub adres @{domain}. Sam login uzupełnimy o tę domenę. Wyślemy link – po kliknięciu będziesz zalogowany.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleMagicLink} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder={`user@${ALLOWED_EMAIL_DOMAIN}`}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <SchoolEmailInput id="email" value={email} onChange={updateEmail} error={emailError} disabled={loading} domain={domain} />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Wysyłanie…" : "Wyślij link do logowania"}
@@ -173,13 +176,7 @@ export function LoginPage() {
               <p className="text-sm font-medium">Logowanie hasłem</p>
               <div className="space-y-2">
                 <Label htmlFor="pw-email">Email</Label>
-                <Input
-                  id="pw-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={`user@${ALLOWED_EMAIL_DOMAIN}`}
-                />
+                <SchoolEmailInput id="pw-email" value={email} onChange={updateEmail} error={emailError} disabled={loading} domain={domain} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pw-password">Hasło</Label>
