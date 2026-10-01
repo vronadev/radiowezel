@@ -11,6 +11,7 @@ import { Music, ThumbsUp, Loader2, SkipForward, Trash2, Clock } from "lucide-rea
 import type { QueueItem, NowPlaying, ScheduleContext } from "@/types/api";
 import LogoSet from "@/components/LogoSet";
 import { formatEstimatedPlayAt } from "@/lib/formatEstimatedPlayAt";
+import { formatVoteCount } from "@/lib/utils";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -81,8 +82,8 @@ function QueueRow({
         </div>
       </div>
       <div className="flex min-w-0 w-full sm:w-auto sm:flex-[1_1_12rem] flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="shrink-0">
-          {item.votes} głosów
+        <Badge variant="secondary" className="shrink-0" title={`${item.votes} głosów`}>
+          {formatVoteCount(item.votes)} głosów
         </Badge>
         {!isNowPlaying && (
           <span className="text-xs sm:text-sm text-muted-foreground">
