@@ -9,6 +9,7 @@ import type { QueueItem, NowPlaying } from "@/types/api";
 import LogoSet from "@/components/LogoSet";
 import { useRealtime } from "@/hooks/useRealtime";
 import { formatEstimatedPlayAt } from "@/lib/formatEstimatedPlayAt";
+import { formatVoteCount } from "@/lib/utils";
 
 function QueueRow({ item, isNowPlaying }: { item: QueueItem | NowPlaying; isNowPlaying?: boolean }) {
   return (
@@ -31,8 +32,8 @@ function QueueRow({ item, isNowPlaying }: { item: QueueItem | NowPlaying; isNowP
         </div>
       </div>
       <div className="flex min-w-0 w-full sm:w-auto sm:flex-[1_1_12rem] flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="shrink-0">
-          {item.votes} głosów
+        <Badge variant="secondary" className="shrink-0" title={`${item.votes} głosów`}>
+          {formatVoteCount(item.votes)} głosów
         </Badge>
         {!isNowPlaying && (
           <span className="text-sm text-muted-foreground">

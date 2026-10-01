@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Music, ThumbsUp } from "lucide-react";
+import { formatVoteCount } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRealtime } from "@/hooks/useRealtime";
 
@@ -82,9 +83,9 @@ export function RankingView() {
                     <p className="font-medium truncate">{song.title}</p>
                     <p className="text-sm text-muted-foreground truncate">{song.author}</p>
                   </div>
-                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1" title={`Łączna liczba głosów: ${song.totalVotes}`}>
                     <ThumbsUp className="h-4 w-4" />
-                    {song.totalVotes}
+                    {formatVoteCount(song.totalVotes)}
                   </span>
                   <Button
                     variant="outline"

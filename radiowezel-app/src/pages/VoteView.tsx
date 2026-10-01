@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Music, Search, Play, ThumbsUp } from "lucide-react";
+import { Music, Search, Play, ThumbsUp, History } from "lucide-react";
+import { formatVoteCount } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import type { Song, SongRequestAggregate } from "@/types/api";
 import { RequestedSongsGrid } from "@/components/RequestedSongsGrid";
@@ -306,6 +307,12 @@ export function VoteView() {
                 const title = song.title ?? "";
                 const author = song.author ?? "";
                 const totalVotes = typeof song.totalVotes === "number" ? song.totalVotes : 0;
+                const currentVotes =
+                  typeof song.voteCount === "number"
+                    ? song.voteCount
+                    : song.voteCount != null && typeof song.voteCount === "object" && "count" in song.voteCount
+                      ? (song.voteCount as { count: number }).count
+                      : 0;
                 return (
                   <Card key={song.id} className="overflow-hidden">
                     <button
@@ -337,23 +344,24 @@ export function VoteView() {
                     <CardContent className="p-3">
                       <p className="font-medium text-sm truncate" title={title}>{title}</p>
                       <p className="text-xs text-muted-foreground truncate" title={author}>{author}</p>
-                      <p className="text-xs text-muted-foreground" title="Łączna liczba oddanych głosów">
-                        łącznie {totalVotes}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1" title={`Głosy w tej kolejce: ${currentVotes}`}>
                           <ThumbsUp className="h-3 w-3" />
-                          {typeof song.voteCount === "number" ? song.voteCount : (song.voteCount != null && typeof song.voteCount === "object" && "count" in song.voteCount ? (song.voteCount as { count: number }).count : 0)}
+                          {formatVoteCount(currentVotes)}
+                        </span>
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1" title={`Łączna liczba oddanych głosów: ${totalVotes}`}>
+                          <History className="h-3 w-3" />
+                          Historia: {formatVoteCount(totalVotes)}
                         </span>
                         {song.inEffectivePlaylist === false ? (
-                          <span className="text-xs text-muted-foreground shrink">Poza playlistą</span>
+                          <span className="ml-auto text-xs text-muted-foreground shrink">Poza playlistą</span>
                         ) : song.canVote === false ? (
-                          <span className="text-xs text-muted-foreground">Zablokowana</span>
+                          <span className="ml-auto text-xs text-muted-foreground">Zablokowana</span>
                         ) : (
                           <Button
                             size="sm"
                             variant="secondary"
-                            className="h-9 text-xs min-h-9 shrink-0"
+                            className="ml-auto h-9 text-xs min-h-9 shrink-0"
                             onClick={() => voteBySong(song.id)}
                             disabled={submitting}
                           >
