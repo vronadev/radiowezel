@@ -34,6 +34,41 @@ copy radiowezel-app\.env.example radiowezel-app\.env
 
 Set `JWT_SECRET` in `backend/.env` (or `jwtSecret` in `config.json`). Edit `config.json` (breaks, admin, SMTP). Point `FRONTEND_ORIGIN` at the URL browsers actually use.
 
+### Admin password setup
+
+Set `adminPasswordHash` in `backend/config.json` to a bcrypt hash generated locally. Log in using the original password, not the hash. The example configuration leaves this field empty; an omitted or empty hash skips bootstrap admin setup.
+
+After installing the backend dependencies, run this in PowerShell from `backend/`. Enter your chosen password at the hidden prompt:
+
+```powershell
+$adminSecret = Read-Host "Admin password" -AsSecureString
+
+try {
+  $env:RADIO_ADMIN_PASSWORD = [System.Net.NetworkCredential]::new(
+    "",
+    $adminSecret
+  ).Password
+
+  node -e "const bcrypt = require('bcryptjs'); const password = process.env.RADIO_ADMIN_PASSWORD; if (!password || Buffer.byteLength(password, 'utf8') > 72) { throw new Error('Password must contain 1 to 72 UTF-8 bytes'); } console.log(bcrypt.hashSync(password, 10));"
+} finally {
+  Remove-Item Env:RADIO_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+  Remove-Variable adminSecret
+}
+```
+
+Copy the output into `adminPasswordHash`. Keep the actual configuration file private; do not put a real password or its hash into the shared example file.
+
+To migrate an existing configuration:
+
+1. Generate a bcrypt hash of your chosen admin password.
+2. Add it as `adminPasswordHash` in `backend/config.json`.
+3. Remove the old `adminPassword` property.
+4. Restart the backend.
+
+Configurations containing `adminPassword` stop startup with migration instructions. Non-string or malformed `adminPasswordHash` values are also rejected. These errors do not print the configured password or hash.
+
+When both `adminEmail` and `adminPasswordHash` are set, startup creates the admin or updates the existing user's password hash and admin status. To change that password, generate and configure a new hash.
+
 ---
 
 ## Option A — one host (UI + API + player)
@@ -158,7 +193,7 @@ Copy from `backend/config.example.json`. Used for school-specific settings that 
 | `jwtSecret` | Signing secret for auth cookies. Required here **or** as `JWT_SECRET`. Use a long random string in production. |
 | `allowedEmailDomain` | Email domain allowed to register / magic-link (e.g. `zsi.kielce.pl`). Overridable with `ALLOWED_EMAIL_DOMAIN`. |
 | `adminEmails` | Addresses that get the admin UI. |
-| `adminEmail` / `adminPassword` | Bootstrap admin created on first start if that user does not exist. Changing the password later is a database update, not a restart. |
+| `adminEmail` / `adminPasswordHash` | Configures the bootstrap admin using a bcrypt password hash. When both are set, startup creates the admin or updates the existing user's password hash and admin status. An omitted or empty hash skips bootstrap admin setup. |
 | `schedule.slots` | Breaks as `{ "start": "HH:MM", "end": "HH:MM" }` in **container local time** (`TZ`). Optional `"volumePercentage": 0`–`100` (default 100 when omitted). Playback only runs inside these windows after the start bell offset and until the end bell offset, and only on an open day. |
 | `schedule.activeDays` | Weekday names (`"monday"` … `"sunday"`, any case) or `Date#getDay()` numbers `0`–`6`. Names and numbers can be mixed. Default `["monday","tuesday","wednesday","thursday","friday"]`. `[]` closes every day. Overridable with `SCHEDULE_ACTIVE_DAYS` (comma-separated). After the first **Harmonogram** save, the SQLite value wins over both. |
 | `schedule.bellStartOffsetSeconds` | Start music this many seconds **after** the slot `start` (opening bell window). Playback and queue ETAs use `start + bellStartOffsetSeconds`. Default `30`. Overridable with `BELL_START_OFFSET_SECONDS`. |
