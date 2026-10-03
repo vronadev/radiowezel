@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
-import bcrypt from "bcryptjs";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config/loadConfig.js";
 import { ApplicationFactory } from "./factories/applicationFactory.js";
@@ -9,9 +8,8 @@ import { ApplicationFactory } from "./factories/applicationFactory.js";
 const config = loadConfig();
 const application = ApplicationFactory.create(config);
 
-if (config.adminEmail && config.adminPassword) {
-  const hash = bcrypt.hashSync(config.adminPassword, 10);
-  application.dataLayer.userService.ensureAdminUser(config.adminEmail, hash);
+if (config.adminEmail && config.adminPasswordHash) {
+  application.dataLayer.userService.ensureAdminUser(config.adminEmail, config.adminPasswordHash);
 }
 
 const app = createApp(application);
