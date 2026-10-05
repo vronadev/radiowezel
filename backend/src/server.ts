@@ -11,6 +11,7 @@ const application = ApplicationFactory.create(config);
 if (config.adminEmail && config.adminPasswordHash) {
   application.dataLayer.userService.ensureAdminUser(config.adminEmail, config.adminPasswordHash);
 }
+application.dataLayer.pollService.ensureRecurringWeeklyBellPolls(application.clock.now());
 
 const app = createApp(application);
 const server = http.createServer(app);

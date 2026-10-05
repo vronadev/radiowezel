@@ -8,6 +8,8 @@ import { SettingsController } from "../controllers/settingsController.js";
 import { SongController } from "../controllers/songController.js";
 import { VoteController } from "../controllers/voteController.js";
 import { SongRequestController } from "../controllers/songRequestController.js";
+import { BellController } from "../controllers/bellController.js";
+import { PollController } from "../controllers/pollController.js";
 import type { Application } from "./applicationFactory.js";
 
 export interface Controllers {
@@ -17,6 +19,8 @@ export interface Controllers {
   song: SongController;
   vote: VoteController;
   songRequest: SongRequestController;
+  bell: BellController;
+  poll: PollController;
   playlist: PlaylistController;
   schedule: ScheduleController;
   playlistSchedule: PlaylistScheduleController;
@@ -53,6 +57,21 @@ export class ControllerFactory {
         application.queueManager,
         application.youtubeMetadata,
         dataLayer.songRequestService,
+        application.realtime,
+      ),
+      bell: new BellController(
+        dataLayer.bellService,
+        dataLayer.pollService,
+        application.youtubeMetadata,
+        application.email,
+        `${application.config.frontendOrigin.replace(/\/$/, "")}/polls`,
+        application.config.voteTieBreakMode,
+        application.realtime,
+      ),
+      poll: new PollController(
+        dataLayer.pollService,
+        application.youtubeMetadata,
+        application.config.voteTieBreakMode,
         application.realtime,
       ),
       songRequest: new SongRequestController(

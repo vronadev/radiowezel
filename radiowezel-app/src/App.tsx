@@ -28,6 +28,7 @@ import { User, LogOut, Moon, Sun, ListMusic } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { VoteQuotaBadge } from "@/components/VoteQuotaBadge";
 import { HistoryView } from "@/pages/HistoryView";
+import { PollsView } from "@/pages/PollsView";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -47,7 +48,9 @@ function Layout({ children }: { children: React.ReactNode }) {
   const tab =
     location.pathname === "/vote"
       ? "vote"
-      : location.pathname === "/requests"
+      : location.pathname === "/polls"
+        ? "polls"
+        : location.pathname === "/requests"
         ? "requests"
         : location.pathname.startsWith("/admin")
           ? "admin"
@@ -98,6 +101,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             </TabsTrigger>
             <TabsTrigger value="vote" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/vote">Głosowanie</Link>
+            </TabsTrigger>
+            <TabsTrigger value="polls" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
+              <Link to="/polls">Dzwonki</Link>
             </TabsTrigger>
             <TabsTrigger value="requests" asChild className="px-2 sm:px-3 text-xs sm:text-sm">
               <Link to="/requests">Zgłoszenia</Link>
@@ -219,6 +225,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <RankingView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/polls"
+            element={
+              <ProtectedRoute>
+                <PollsView />
               </ProtectedRoute>
             }
           />

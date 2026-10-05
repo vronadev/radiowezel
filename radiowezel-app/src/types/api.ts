@@ -39,6 +39,48 @@ export interface Song {
   canVote?: boolean;
 }
 
+export type PollType = "WEEKLY_BELL" | "ONE_OFF";
+
+export interface Bell {
+  id: string;
+  title: string;
+  artist: string;
+  youtubeUrl: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  isApproved: boolean;
+  requestedById: string | null;
+  createdAt: string;
+}
+
+export interface PollOptionView {
+  id: string;
+  pollId: string;
+  bellId: string | null;
+  title: string;
+  artist: string;
+  youtubeUrl: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  isApproved: boolean;
+  eligible: boolean;
+  voteCount: number;
+  firstVoteAt: string;
+  lastVoteAt: string;
+}
+
+export interface PollView {
+  id: string;
+  title: string;
+  type: PollType;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  myOptionId: string | null;
+  winnerOptionId: string | null;
+  options: PollOptionView[];
+}
+
 export interface SongRequestAggregate {
   songId: string;
   title: string;

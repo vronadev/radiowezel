@@ -1,3 +1,58 @@
+export const BELLS_AND_POLLS_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS bells (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL,
+    youtube_url TEXT NOT NULL,
+    start_time_sec INTEGER NOT NULL DEFAULT 0,
+    end_time_sec INTEGER NOT NULL DEFAULT 30,
+    is_approved INTEGER NOT NULL DEFAULT 0,
+    requested_by_id TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (requested_by_id) REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_bells_approved ON bells(is_approved);
+
+  CREATE TABLE IF NOT EXISTS polls (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('WEEKLY_BELL', 'ONE_OFF')),
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_polls_active ON polls(is_active);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_polls_weekly_start ON polls(start_date) WHERE type = 'WEEKLY_BELL';
+
+  CREATE TABLE IF NOT EXISTS poll_options (
+    id TEXT PRIMARY KEY,
+    poll_id TEXT NOT NULL,
+    bell_id TEXT,
+    title TEXT NOT NULL,
+    youtube_url TEXT,
+    start_time_sec INTEGER NOT NULL DEFAULT 0,
+    end_time_sec INTEGER NOT NULL DEFAULT 30,
+    FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE,
+    FOREIGN KEY (bell_id) REFERENCES bells(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON poll_options(poll_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_poll_options_poll_bell ON poll_options(poll_id, bell_id) WHERE bell_id IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS poll_votes (
+    id TEXT PRIMARY KEY,
+    poll_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    poll_option_id TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(poll_id, user_id),
+    FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (poll_option_id) REFERENCES poll_options(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id);
+  CREATE INDEX IF NOT EXISTS idx_poll_votes_option ON poll_votes(poll_option_id);
+`;
+
 export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -95,4 +150,4 @@ export const SCHEMA_SQL = `
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
   CREATE INDEX IF NOT EXISTS idx_song_requests_song ON song_requests(song_id);
-`;
+` + BELLS_AND_POLLS_SCHEMA_SQL;

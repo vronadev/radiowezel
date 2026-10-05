@@ -15,6 +15,75 @@ export interface Song {
   createdAt: string;
 }
 
+export type PollType = "WEEKLY_BELL" | "ONE_OFF";
+
+export interface Bell {
+  id: string;
+  title: string;
+  artist: string;
+  youtubeUrl: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  isApproved: boolean;
+  requestedById: string | null;
+  createdAt: string;
+}
+
+export interface Poll {
+  id: string;
+  title: string;
+  type: PollType;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+export interface PollOption {
+  id: string;
+  pollId: string;
+  bellId: string | null;
+  title: string;
+  youtubeUrl: string | null;
+  startTimeSec: number;
+  endTimeSec: number;
+}
+
+export interface PollVote {
+  id: string;
+  pollId: string;
+  userId: string;
+  pollOptionId: string;
+  createdAt: string;
+}
+
+export interface PollOptionView {
+  id: string;
+  pollId: string;
+  bellId: string | null;
+  title: string;
+  artist: string;
+  youtubeUrl: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  isApproved: boolean;
+  eligible: boolean;
+  voteCount: number;
+  firstVoteAt: string;
+  lastVoteAt: string;
+}
+
+export interface PollView {
+  id: string;
+  title: string;
+  type: PollType;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  myOptionId: string | null;
+  winnerOptionId: string | null;
+  options: PollOptionView[];
+}
+
 export interface Playlist {
   id: string;
   name: string;

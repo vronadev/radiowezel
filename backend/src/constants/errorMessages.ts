@@ -27,6 +27,19 @@ export const ErrorMessages = {
   alreadyVerified: "Piosenka już zweryfikowana",
   verifiedNeedsPermanentDelete: "Użyj „Usuń z dysku i bazy” dla zweryfikowanych piosenek.",
   onlyVerifiedPermanentDelete: "Tylko zweryfikowane piosenki można usunąć z dysku i bazy.",
+  pollNotFound: "Ankieta nie znaleziona",
+  pollClosed: "Ankieta nie przyjmuje głosów",
+  pollOptionNotFound: "Opcja nie należy do tej ankiety",
+  pollOptionRequired: "Podaj dzwonek z biblioteki albo link YouTube",
+  pollTitleRequired: "Podaj tytuł ankiety",
+  pollOptionsRequired: "Dodaj przynajmniej jedną opcję",
+  invalidPollDate: "Podaj daty w formacie RRRR-MM-DD",
+  invalidPollRange: "Data końca nie może być wcześniejsza niż data początku",
+  invalidPollType: "Nieprawidłowy typ ankiety",
+  bellNotFound: "Dzwonek nie znaleziony",
+  bellNotApproved: "Z biblioteki można dodać tylko zatwierdzony dzwonek",
+  weeklyOptionsOnly: "Opcje może dodawać tylko administrator tej ankiety",
+  weeklyPollExists: "Ankieta dzwonków na ten tydzień już istnieje",
 } as const;
 
 export function allowedEmailDomainMessage(domain: string): string {
