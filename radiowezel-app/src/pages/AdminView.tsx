@@ -20,6 +20,7 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { Music, Loader2, ExternalLink, Settings, Pause, Play, ListMusic, Calendar, RefreshCw, Trash2, Library, Settings2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Song } from "@/types/api";
+import { AdminPollsPanel } from "@/components/AdminPollsPanel";
 
 const DAY_NAMES = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 
@@ -436,7 +437,12 @@ export function AdminView() {
           <TabsTrigger value="schedule">Harmonogram</TabsTrigger>
           <TabsTrigger value="player">Odtwarzacz</TabsTrigger>
           <TabsTrigger value="quota">Limit głosów</TabsTrigger>
+          <TabsTrigger value="polls">Dzwonki</TabsTrigger>
         </TabsList>
+
+      <TabsContent value="polls">
+        <AdminPollsPanel />
+      </TabsContent>
 
       <TabsContent value="player">
       <Card>

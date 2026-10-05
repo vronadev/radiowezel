@@ -24,6 +24,21 @@ export function extractYoutubeVideoId(url: string): string | null {
   return fromPath?.[1] ?? null;
 }
 
+export function youtubeClipEmbedUrl(videoId: string, startSeconds: number, endSeconds: number): string {
+  const start = Math.max(0, Math.floor(startSeconds));
+  const end = Math.max(start + 1, Math.floor(endSeconds));
+  const params = new URLSearchParams({
+    autoplay: "1",
+    start: String(start),
+    end: String(end),
+    controls: "1",
+    modestbranding: "1",
+    rel: "0",
+    playsinline: "1",
+  });
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+}
+
 export function youtubeEmbedPreviewUrl(videoId: string, startSeconds: number): string {
   const params = new URLSearchParams({
     autoplay: "1",

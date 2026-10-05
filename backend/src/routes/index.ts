@@ -12,6 +12,8 @@ import { createAdminSongRouter, createSongRouter } from "./song.routes.js";
 import { createVoteRouter } from "./vote.routes.js";
 import { createSongRequestRouter } from "./songRequest.routes.js";
 import { createPlayRouter, createPublicPlayRouter } from "./play.routes.js";
+import { createAdminBellRouter, createBellRouter } from "./bell.routes.js";
+import { createAdminPollRouter, createPollRouter } from "./poll.routes.js";
 
 export function createApiRouter(
   auth: AuthMiddleware,
@@ -29,6 +31,8 @@ export function createApiRouter(
   router.use("/playlists", createPlaylistRouter(controllers.playlist, auth));
   router.use("/vote", createVoteRouter(controllers.vote, auth));
   router.use("/song-requests", createSongRequestRouter(controllers.songRequest, auth));
+  router.use("/bells", createBellRouter(controllers.bell, auth));
+  router.use("/polls", createPollRouter(controllers.poll, auth));
   router.use("/plays", createPlayRouter(controllers.play, auth));
   router.use("/schedule", createScheduleRouter(controllers.schedule, auth));
   router.use("/admin/player", createPlayerRouter(controllers.player, auth));
@@ -37,6 +41,8 @@ export function createApiRouter(
   router.use("/admin/queue", createAdminQueueRouter(controllers.queue, auth));
   router.use("/admin/playlists", createAdminPlaylistRouter(controllers.playlist, auth));
   router.use("/admin/playlist-schedule", createPlaylistScheduleRouter(controllers.playlistSchedule, auth));
+  router.use("/admin/bells", createAdminBellRouter(controllers.bell, auth));
+  router.use("/admin/polls", createAdminPollRouter(controllers.poll, auth));
 
   return router;
 }

@@ -5,12 +5,14 @@ export type RealtimeEventName =
   | "requests:updated"
   | "downloads:updated"
   | "player:updated"
-  | "library:updated";
+  | "library:updated"
+  | "polls:updated";
 
 export interface RealtimeMessage {
   event: RealtimeEventName;
   ts: string;
   songId?: string;
+  pollId?: string;
   title?: string;
   author?: string;
   startedAt?: string;

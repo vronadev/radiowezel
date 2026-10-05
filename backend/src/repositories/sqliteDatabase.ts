@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import type { Database as BetterSqliteDatabase, Statement } from "better-sqlite3";
 import type { IDatabase, IStatement, StatementRunResult } from "../interfaces/IDatabase.js";
-import { SCHEMA_SQL } from "../config/schema.js";
+import { BELLS_AND_POLLS_SCHEMA_SQL, SCHEMA_SQL } from "../config/schema.js";
 
 class SqliteStatement<TResult> implements IStatement<TResult> {
   constructor(private readonly statement: Statement) {}
@@ -52,6 +52,7 @@ export class SqliteDatabase implements IDatabase {
     this.migratePlaylistSongsColumns();
     this.migratePlaylistsColumns();
     this.migrateSongRequests();
+    this.migrateBellsAndPolls();
   }
 
   private migrateTotalVotes(): void {
@@ -139,6 +140,10 @@ export class SqliteDatabase implements IDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_song_requests_song ON song_requests(song_id);
     `);
+  }
+
+  private migrateBellsAndPolls(): void {
+    this.exec(BELLS_AND_POLLS_SCHEMA_SQL);
   }
 }
 

@@ -1,4 +1,4 @@
-import type { ScheduleConfig } from "@/types/api";
+import type { Bell, PollView, ScheduleConfig } from "@/types/api";
 import { toast } from "@/hooks/use-toast";
 import {
   createHttpClient,
@@ -269,6 +269,79 @@ export const api = {
     plays: { songId: string; title: string; author: string; startedAt: string; durationSeconds: number | null }[];
   }> {
     return request(http, { url: "/public/plays" }, config);
+  },
+
+  async getActivePolls(config?: ApiRequestConfig): Promise<{ polls: PollView[] }> {
+    return request(http, { url: "/polls/active" }, config);
+  },
+
+  async castPollVote(pollId: string, pollOptionId: string, config?: ApiRequestConfig): Promise<{ poll: PollView }> {
+    return request(http, { url: `/polls/${pollId}/vote`, method: "POST", data: { pollOptionId } }, config);
+  },
+
+  async clearPollVote(pollId: string, config?: ApiRequestConfig): Promise<{ poll: PollView }> {
+    return request(http, { url: `/polls/${pollId}/vote`, method: "DELETE" }, config);
+  },
+
+  async getBells(config?: ApiRequestConfig): Promise<{ bells: Bell[] }> {
+    return request(http, { url: "/bells" }, config);
+  },
+
+  async requestBell(
+    body: { youtubeUrl: string; title?: string; artist?: string; startTimeSec?: number; endTimeSec?: number },
+    config?: ApiRequestConfig,
+  ): Promise<{ bell: Bell; poll: PollView | null; added: boolean }> {
+    return request(http, { url: "/bells/request", method: "POST", data: body }, config);
+  },
+
+  async addPollOption(
+    pollId: string,
+    body: { bellId?: string; youtubeUrl?: string; title?: string; artist?: string; startTimeSec?: number; endTimeSec?: number },
+    config?: ApiRequestConfig,
+  ): Promise<{ poll: PollView; added: boolean }> {
+    return request(http, { url: `/polls/${pollId}/options`, method: "POST", data: body }, config);
+  },
+
+  async getPendingBells(config?: ApiRequestConfig): Promise<{ bells: Bell[] }> {
+    return request(http, { url: "/admin/bells/pending" }, config);
+  },
+
+  async approveBell(
+    bellId: string,
+    body: { title?: string; artist?: string; youtubeUrl?: string; startTimeSec?: number; endTimeSec?: number } = {},
+    config?: ApiRequestConfig,
+  ): Promise<{ bell: Bell }> {
+    return request(http, { url: `/admin/bells/${bellId}/approve`, method: "PATCH", data: body }, config);
+  },
+
+  async getAdminPolls(config?: ApiRequestConfig): Promise<{ polls: PollView[]; tieBreakMode: string }> {
+    return request(http, { url: "/admin/polls" }, config);
+  },
+
+  async createPoll(
+    body: {
+      title: string;
+      type: "WEEKLY_BELL" | "ONE_OFF";
+      startDate: string;
+      endDate: string;
+      isActive?: boolean;
+      options: { title: string; youtubeUrl: string; startTimeSec?: number; endTimeSec?: number }[];
+    },
+    config?: ApiRequestConfig,
+  ): Promise<{ poll: PollView }> {
+    return request(http, { url: "/admin/polls", method: "POST", data: body }, config);
+  },
+
+  async updatePoll(
+    pollId: string,
+    body: { title?: string; startDate?: string; endDate?: string; isActive?: boolean },
+    config?: ApiRequestConfig,
+  ): Promise<{ poll: PollView }> {
+    return request(http, { url: `/admin/polls/${pollId}`, method: "PATCH", data: body }, config);
+  },
+
+  async removePollOption(pollId: string, optionId: string, config?: ApiRequestConfig): Promise<{ poll: PollView }> {
+    return request(http, { url: `/admin/polls/${pollId}/options/${optionId}`, method: "DELETE" }, config);
   },
 
   async logout(config?: ApiRequestConfig) {
