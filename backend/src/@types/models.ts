@@ -198,7 +198,7 @@ export interface AppConfig {
   allowedEmailDomain: string;
   adminEmails: string[];
   adminEmail?: string;
-  adminPassword?: string;
+  adminPasswordHash?: string;
   jwtSecret: string;
   schedule: {
     slots: ScheduleSlot[];

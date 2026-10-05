@@ -2,7 +2,7 @@
   "allowedEmailDomain": "zsi.kielce.pl",
   "adminEmails": ["admin@zsi.kielce.pl"],
   "adminEmail": "admin@zsi.kielce.pl",
-  "adminPassword": "admin123",
+  "adminPasswordHash": "",
   "schedule": {
     "slots": [
       { "start": "07:30", "end": "08:00", "volumePercentage": 100 },

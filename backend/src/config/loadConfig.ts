@@ -25,7 +25,7 @@ interface RawConfigFile {
   allowedEmailDomain?: string;
   adminEmails?: string[];
   adminEmail?: string;
-  adminPassword?: string;
+  adminPasswordHash?: string;
   jwtSecret?: string;
   schedule?: {
     slots?: Array<{ start: string; end: string; volumePercentage?: number | string }>;
@@ -125,6 +125,31 @@ function parseNonNegativeInt(value: string | number | undefined, fallback: numbe
 
 export function loadConfig(): AppConfig {
   const file = readConfigFile();
+
+  if ("adminPassword" in file) {
+    throw new Error(
+      "adminPassword is no longer supported in config.json. Please use adminPasswordHash instead. " +
+      "Use bcrypt to hash your password and set adminPasswordHash in config.json. Remove the old adminPassword field.",
+    );
+  }
+
+  if (typeof file.adminPasswordHash !== "string" && file.adminPasswordHash !== undefined) {
+    throw new Error(
+      "adminPasswordHash in config.json must be a string. " +
+      "Please use bcrypt to hash your password and set adminPasswordHash in config.json.",
+    );
+  }
+
+  if (
+    file.adminPasswordHash &&
+    !/^\$2[aby]\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$/.test(file.adminPasswordHash)
+  ) {
+    throw new Error(
+      "adminPasswordHash in config.json is not a valid bcrypt hash. " +
+      "Please use bcrypt to hash your password and set adminPasswordHash in config.json.",
+    );
+  }
+
   const dataDir = resolvePath(process.env.DATA_DIR || file.dataDir || "./data", "./data");
   const songsDir = resolvePath(process.env.SONGS_DIR || file.songsDir || "./data/songs", "./data/songs");
   const queueFilePath = resolvePath(
@@ -142,7 +167,7 @@ export function loadConfig(): AppConfig {
     allowedEmailDomain: process.env.ALLOWED_EMAIL_DOMAIN || file.allowedEmailDomain || "zsi.kielce.pl",
     adminEmails: file.adminEmails ?? [],
     adminEmail: file.adminEmail,
-    adminPassword: file.adminPassword,
+    adminPasswordHash: file.adminPasswordHash,
     jwtSecret,
     schedule: {
       slots: parseScheduleSlots(file.schedule?.slots),
