@@ -21,6 +21,8 @@ Do not leave the `#` in front of `load-module`. `listen=0.0.0.0` lets Docker rea
 
 5. Allow inbound TCP **4713** in Windows Defender Firewall if playback stays silent.
 
+**External audio interface not listed:** a USB or other audio interface plugged into the host may not show up as an output in the Windows PulseAudio server, so the container cannot play through it. Workaround: install a virtual audio device such as [VB-Cable](https://vb-audio.com/Cable/) or Virtual Audio Cable, and route its output to the interface in Windows sound settings.
+
 ### 1a. One-off start (manual)
 
 From the PulseAudio `bin` directory in PowerShell or CMD:
