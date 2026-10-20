@@ -60,3 +60,8 @@
 .ghost-domain {
   color: hsl(var(--muted-foreground) / 0.55);
 }
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
